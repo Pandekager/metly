@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-white text-slate-800 antialiased dark:bg-slate-900 dark:text-slate-100;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-metly-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-metly-700 transition-all duration-200 shadow-md hover:shadow-lg;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-metly-600 border-2 border-metly-600 px-6 py-3 rounded-lg font-semibold hover:bg-metly-50 transition-all duration-200 dark:bg-slate-800 dark:hover:bg-slate-700;
+  }
+
+  .btn-tertiary {
+    @apply bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-6 py-3 rounded-lg font-semibold hover:from-cyan-600 hover:to-blue-600 transition-all duration-200 shadow-md hover:shadow-lg;
+  }
+
+  .card {
+    @apply bg-white rounded-2xl shadow-lg border border-slate-100 p-6 hover:shadow-xl transition-all duration-300;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-metly-500 focus:border-transparent transition-all duration-200 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-400;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-metly-600 to-metly-800 bg-clip-text text-transparent;
+  }
+
+  .section {
+    @apply px-6 py-16 md:px-12 lg:px-24;
+  }
+}
