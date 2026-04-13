@@ -1,0 +1,22 @@
+{
+  "name": "metly-shopify",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "shopify": "shopify",
+    "build": "shopify app build",
+    "dev": "shopify app dev",
+    "push": "shopify app push",
+    "deploy": "shopify app deploy",
+    "seed:demo": "node seed-demo-store.js"
+  },
+  "dependencies": {
+    "@shopify/shopify-api": "^11.14.0"
+  },
+  "devDependencies": {
+    "@shopify/cli": "^3.92.1"
+  },
+  "author": "Rasmus",
+  "license": "MIT"
+}

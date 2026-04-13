@@ -1,15 +1,15 @@
 .DS_Store
 
-metly_frontend/node_modules/
-metly_frontend/.nuxt/
-metly_frontend/.output/
-metly_frontend/.data/
+frontend/node_modules/
+frontend/.nuxt/
+frontend/.output/
+frontend/.data/
 
-metly_backend/.venv/
-metly_backend/__pycache__/
-metly_backend/**/*.pyc
-metly_backend/logs/
+backend/.venv/
+backend/__pycache__/
+backend/**/*.pyc
+backend/logs/
 
 *.log
-metly_backend/.env
-metly_frontend/.env
+backend/.env
+frontend/.env
