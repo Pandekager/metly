@@ -10,7 +10,7 @@
 
 **Status:** Ready for planning
 
-**Plans:** 2 plans in 2 waves
+**Plans:** 2/2 plans complete
 
 ### Requirements
 - [AUTH-01 through AUTH-05, AUTH-11, AUTH-12] — Authentication and user management
@@ -40,8 +40,8 @@
 
 ### Plans
 
-- [ ] 10-01-PLAN.md — Backend Product Analysis Pipeline (wave 1, autonomous)
-- [ ] 10-02-PLAN.md — Frontend Product Analytics UI (wave 2, has checkpoint)
+- [x] 10-01-PLAN.md — Backend Product Analysis Pipeline (wave 1, autonomous)
+- [x] 10-02-PLAN.md — Frontend Product Analytics UI (wave 2, has checkpoint)
 
 ---
 
