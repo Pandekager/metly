@@ -1,5 +1,6 @@
 import os
 import logging
+import argparse
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("metly")
@@ -10,10 +11,11 @@ from src.scripts.db.enforceDataProtection import enforce_data_protection
 from src.scripts.analysis.predictSales import predictSales
 from src.scripts.analysis.consultAi import get_business_advice
 from src.scripts.analysis.productAdvice import get_product_advice
+from src.scripts.generateTestData import run_test_generation
 import datetime
 
 
-def main():
+def main(test_data: bool = False, user_id: str | None = None):
 
     logger.info("Starting Metly Backend Operations")
     start_time = datetime.datetime.now()
@@ -23,6 +25,26 @@ def main():
     load_dotenv("./.env")
     db_usr = os.getenv("DB_USR_ADMIN")
     db_pwd = os.getenv("DB_PWD_ADMIN")
+
+    # Handle test data generation
+    if test_data:
+        logger.info("Running test data generation")
+        result = run_test_generation(products_count=20, orders_count=10)
+        if result.get("status") == "success":
+            logger.info("Test data generated successfully")
+            # Sync to database if user_id provided
+            if user_id:
+                logger.info(f"Syncing test data to database for user: {user_id}")
+                populateDB(db_usr, db_pwd, user_ids=[user_id])
+        else:
+            logger.error(f"Test data generation failed: {result.get('reason')}")
+            raise RuntimeError(f"Test data generation failed: {result.get('reason')}")
+
+        end_time = datetime.datetime.now()
+        logger.info(
+            f"complete at {end_time.isoformat()}, total time: {end_time - start_time}"
+        )
+        return
 
     logger.info("step 1 start: Creating Database Tables")
     createTables(db_usr, db_pwd)
@@ -65,4 +87,17 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Metly Backend CLI")
+    parser.add_argument(
+        "--test-data",
+        action="store_true",
+        help="Generate test data instead of running full pipeline",
+    )
+    parser.add_argument(
+        "--user",
+        type=str,
+        help="User ID to sync test data to database (requires --test-data)",
+    )
+    args = parser.parse_args()
+
+    main(test_data=args.test_data, user_id=args.user)

@@ -4,6 +4,34 @@
 
 ---
 
+## Phase 99: Shopify Test Data Generator
+
+**Goal:** Create scheduled test data generation that produces Danish golf products and orders in Shopify for development/testing.
+
+**Status:** Ready for execution
+
+**Plans:** 2/2 plans
+
+### Decision Coverage
+
+| D-ID | Decision | Plan | Task |
+|------|----------|------|------|
+| D-01 | Products first, then orders | 99-01 | Task 1 |
+| D-02 | 6 categories: golf clubs, bags, balls, gloves, apparel, accessories | 99-01 | Task 1 |
+| D-03 | Danish customer data (names, addresses, cities) | 99-01 | Task 1 |
+| D-04 | Order values 500-5000 DKK | 99-01 | Task 1 |
+| D-05 | Daily cron: 0 0 * * * | 99-02 | Task 2 |
+| D-06 | Uses existing Shopify credentials | 99-01 | Task 1 |
+| D-07 | Use Shopify Admin API | 99-01 | Task 1 |
+| D-08 | Sync via populateDB flow | 99-02 | Task 1 |
+
+### Plans
+
+- [ ] 99-01-PLAN.md — Test Data Generator Module (wave 1, autonomous)
+- [ ] 99-02-PLAN.md — CLI Integration + Cron (wave 2, depends on 99-01)
+
+---
+
 ## Phase 10: Product Analysis Feature
 
 **Goal:** Add product analytics and AI-powered recommendations to the "produkter" tab in home.vue.
