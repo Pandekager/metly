@@ -28,12 +28,14 @@ except Exception as e:
 
 # Import customer analytics router
 from .customerAnalytics import router as customer_analytics_router
+from .productAnalytics import router as product_analytics_router
 from .shopify import router as shopify_router
 
 app = FastAPI(title="Metly - Forecasts endpoint")
 
 # Include routers
 app.include_router(customer_analytics_router)
+app.include_router(product_analytics_router)
 app.include_router(shopify_router)
 
 # Globals populated at startup
@@ -240,7 +242,9 @@ def _normalize_platform_name(platform: str) -> str:
 
 
 def _ensure_platform_id(platform_name: str) -> str:
-    select_sql = text("SELECT id FROM platforms WHERE LOWER(name) = LOWER(:name) LIMIT 1")
+    select_sql = text(
+        "SELECT id FROM platforms WHERE LOWER(name) = LOWER(:name) LIMIT 1"
+    )
     admin_conn, engine = _get_admin_engine()
 
     try:
@@ -254,7 +258,9 @@ def _ensure_platform_id(platform_name: str) -> str:
         except Exception:
             pass
 
-    raise HTTPException(status_code=500, detail="Platform is not configured in the database")
+    raise HTTPException(
+        status_code=500, detail="Platform is not configured in the database"
+    )
 
 
 def _delete_user_and_related_data(engine, user_id: str) -> None:
@@ -354,9 +360,7 @@ def login_user(credentials: LoginRequest):
 
     if conn is None or not hasattr(conn, "_sqlalchemy_engine"):
         logger.error("No database connection available for login.")
-        raise HTTPException(
-            status_code=500, detail="Database connection unavailable."
-        )
+        raise HTTPException(status_code=500, detail="Database connection unavailable.")
 
     DEMO_EMAIL = "demo@metly.dk"
     DEMO_PASSWORD = "demo"
@@ -416,12 +420,8 @@ def _handle_demo_login():
 
     logger.info("Handling demo login")
 
-    sql = text(
-        "SELECT u.id FROM metlydk_main.users u WHERE u.username = :email"
-    )
-    lookup_platform = text(
-        "SELECT id FROM metlydk_main.platforms WHERE name = :name"
-    )
+    sql = text("SELECT u.id FROM metlydk_main.users u WHERE u.username = :email")
+    lookup_platform = text("SELECT id FROM metlydk_main.platforms WHERE name = :name")
     create_platform_sql = text(
         "INSERT INTO metlydk_main.platforms (name) VALUES (:name)"
     )
@@ -465,9 +465,7 @@ def _handle_demo_login():
                 )
 
             with conn._sqlalchemy_engine.connect() as db_conn:
-                result = db_conn.execute(
-                    sql, {"email": "demo@metly.dk"}
-                ).fetchone()
+                result = db_conn.execute(sql, {"email": "demo@metly.dk"}).fetchone()
 
             if not result:
                 raise HTTPException(status_code=500, detail="Demo user creation failed")
@@ -568,9 +566,7 @@ def delete_account(current_user: UUID = Depends(get_current_user)):
 
     if conn is None or not hasattr(conn, "_sqlalchemy_engine"):
         logger.error("No database connection available for account deletion.")
-        raise HTTPException(
-            status_code=500, detail="Database connection unavailable."
-        )
+        raise HTTPException(status_code=500, detail="Database connection unavailable.")
 
     lookup_user_sql = text(
         "SELECT username FROM metlydk_main.users WHERE id = :user_id LIMIT 1"
@@ -774,9 +770,11 @@ def get_onboarding_status(current_user: UUID = Depends(get_current_user)):
     forecasts_count = int(row[3] or 0)
     advice_count = int(row[4] or 0)
 
-    sync_score = min(products_count / 25, 1.0) * 0.3 + min(
-        orders_count / 50, 1.0
-    ) * 0.5 + min(customers_count / 25, 1.0) * 0.2
+    sync_score = (
+        min(products_count / 25, 1.0) * 0.3
+        + min(orders_count / 50, 1.0) * 0.5
+        + min(customers_count / 25, 1.0) * 0.2
+    )
 
     if orders_count == 0 and products_count == 0 and customers_count == 0:
         return OnboardingStatusResponse(

@@ -9,6 +9,7 @@ from src.scripts.db.createDB import createTables
 from src.scripts.db.enforceDataProtection import enforce_data_protection
 from src.scripts.analysis.predictSales import predictSales
 from src.scripts.analysis.consultAi import get_business_advice
+from src.scripts.analysis.productAdvice import get_product_advice
 import datetime
 
 
@@ -52,6 +53,10 @@ def main():
     logger.info("step 5 start: Running AI Business Advice")
     get_business_advice(db_usr, db_pwd)
     logger.info(f"step 5 complete, elapsed: {datetime.datetime.now() - start_time}")
+
+    logger.info("step 6 start: Running Product AI Analysis")
+    get_product_advice(db_usr, db_pwd)
+    logger.info(f"step 6 complete, elapsed: {datetime.datetime.now() - start_time}")
 
     end_time = datetime.datetime.now()
     logger.info(
