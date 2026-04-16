@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import random
 from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlparse, urlencode
@@ -9,6 +10,86 @@ import pandas as pd
 
 
 SHOPIFY_API_VERSION = "2025-10"
+
+DANISH_FIRST_NAMES = [
+    "Anders",
+    "Anne",
+    "Brian",
+    "Camilla",
+    "Claus",
+    "Dorte",
+    "Erik",
+    "Frode",
+    "Gitte",
+    "Henrik",
+    "Ida",
+    "Jens",
+    "Karen",
+    "Lars",
+    "Morten",
+    "Niels",
+    "Ole",
+    "Pelle",
+    "Rasmus",
+    "Søren",
+    "Thomas",
+    "Ulla",
+    "Vibeke",
+    "William",
+]
+
+DANISH_LAST_NAMES = [
+    "Andersen",
+    "Berg",
+    "Christensen",
+    "Dahl",
+    "Hansen",
+    "Jensen",
+    "Johansen",
+    "Larsen",
+    "Mortensen",
+    "Nielsen",
+    "Olsen",
+    "Pedersen",
+    "Rasmussen",
+    "Sørensen",
+    "Thomsen",
+    "Winther",
+]
+
+DANISH_CITIES = [
+    ("København", "1000-2990"),
+    ("Aarhus", "8000-8200"),
+    ("Odense", "5000-5290"),
+    ("Aalborg", "9000-9210"),
+    ("Esbjerg", "6700-6715"),
+    ("Randers", "8900-8960"),
+    ("Kolding", "6000-6090"),
+    ("Horsens", "8700-8700"),
+]
+
+GOLF_PRODUCT_TEMPLATES = [
+    ("Golfkølle - Driver", "Golfudstyr", "Driver", 1299.00),
+    ("Golfkølle - Iron Set", "Golfudstyr", "Iron Set", 3499.00),
+    ("Golfkølle - Putter", "Golfudstyr", "Putter", 599.00),
+    ("Golfkølle - Wedge", "Golfudstyr", "Wedge", 449.00),
+    ("Golftaske - Stand Bag", "Golfudstyr", "Tasker", 899.00),
+    ("Golftaske - Cart Bag", "Golfudstyr", "Tasker", 1299.00),
+    ("Golfbolde - Tour Pro (12 stk)", "Golfudstyr", "Bolde", 299.00),
+    ("Golfbolde - Practice (50 stk)", "Golfudstyr", "Bolde", 149.00),
+    ("Golfhandsker - Herre", "Golfbeklædning", "Tilbehør", 129.00),
+    ("Golfhandsker - Dame", "Golfbeklædning", "Tilbehør", 129.00),
+    ("Golfcap - Pro", "Golfbeklædning", "Hovedbeklædning", 199.00),
+    ("Golfsko - Herre", "Golfbeklædning", "Sko", 899.00),
+    ("Golfsko - Dame", "Golfbeklædning", "Sko", 899.00),
+    ("Golftrøje - Poloshirt", "Golfbeklædning", "Trøjer", 349.00),
+    ("Golfvest - Dame", "Golfbeklædning", "Vest", 599.00),
+    ("Golfregnjakke", "Golfbeklædning", "Regntøj", 799.00),
+    ("Golfhåndklæde", "Golftilbehør", "Tilbehør", 79.00),
+    ("Golfscorekort-holder", "Golftilbehør", "Tilbehør", 149.00),
+    ("Divot-værktøj", "Golftilbehør", "Tilbehør", 59.00),
+    ("Tee-box (100 stk)", "Golftilbehør", "Tilbehør", 39.00),
+]
 
 
 def normalize_shop_domain(shop: str) -> str:
@@ -238,8 +319,10 @@ def get_orders(
                     "extended_external": None,
                 }
 
-            money = ((node.get("currentTotalPriceSet") or {}).get("shopMoney") or {})
-            total_items = sum((line.get("node") or {}).get("quantity", 0) for line in line_edges)
+            money = (node.get("currentTotalPriceSet") or {}).get("shopMoney") or {}
+            total_items = sum(
+                (line.get("node") or {}).get("quantity", 0) for line in line_edges
+            )
             orders_rows.append(
                 {
                     "order_id": order_id,
@@ -257,11 +340,11 @@ def get_orders(
             for line_edge in line_edges:
                 line_item = line_edge.get("node", {})
                 discounted_money = (
-                    ((line_item.get("discountedUnitPriceAfterAllDiscountsSet") or {}).get("shopMoney") or {})
-                )
-                original_money = (
-                    ((line_item.get("originalUnitPriceSet") or {}).get("shopMoney") or {})
-                )
+                    line_item.get("discountedUnitPriceAfterAllDiscountsSet") or {}
+                ).get("shopMoney") or {}
+                original_money = (line_item.get("originalUnitPriceSet") or {}).get(
+                    "shopMoney"
+                ) or {}
                 product = line_item.get("product") or {}
                 variant = line_item.get("variant") or {}
 
@@ -273,7 +356,8 @@ def get_orders(
                         "product_title": line_item.get("name") or product.get("title"),
                         "variant_title": variant.get("title"),
                         "amount": line_item.get("quantity"),
-                        "unit_revenue": discounted_money.get("amount") or original_money.get("amount"),
+                        "unit_revenue": discounted_money.get("amount")
+                        or original_money.get("amount"),
                         "unit_cost": None,
                         "stock_status": None,
                         "stock_amount": None,
@@ -322,8 +406,9 @@ def get_products(
     updated_since: datetime | str | None = None,
     product_ids: list[str] | None = None,
 ) -> pd.DataFrame:
+    rows: list[dict[str, Any]] = []
+
     if product_ids:
-        rows: list[dict[str, Any]] = []
         for i in range(0, len(product_ids), page_size):
             chunk = product_ids[i : i + page_size]
             payload = _graphql_request(
@@ -352,13 +437,344 @@ def get_products(
                         "id": node.get("id"),
                         "product_name": node.get("title"),
                         "subcategory_id": node.get("productType") or "shopify-default",
-                        "subcategory_name": node.get("productType") or "Shopify products",
+                        "subcategory_name": node.get("productType")
+                        or "Shopify products",
                         "maincategory_id": node.get("vendor") or "shopify",
                         "maincategory_name": node.get("vendor") or "Shopify",
                         "updatedAt": node.get("updatedAt"),
                     }
                 )
-        return _products_dataframe_from_rows(rows)
+    else:
+        query = """
+        query Products($first: Int!, $after: String, $query: String) {
+          products(first: $first, after: $after, sortKey: UPDATED_AT, reverse: true, query: $query) {
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+            edges {
+              node {
+                id
+                title
+                productType
+                vendor
+                updatedAt
+              }
+            }
+          }
+        }
+        """
+
+        cursor: str | None = None
+
+        while True:
+            search_query = _updated_since_query("updated_at", updated_since)
+            payload = _graphql_request(
+                shop,
+                access_token,
+                query,
+                {"first": page_size, "after": cursor, "query": search_query},
+            )
+            products = payload.get("products", {})
+
+            for edge in products.get("edges", []):
+                node = edge.get("node", {})
+                rows.append(
+                    {
+                        "id": node.get("id"),
+                        "product_name": node.get("title"),
+                        "subcategory_id": node.get("productType") or "shopify-default",
+                        "subcategory_name": node.get("productType")
+                        or "Shopify products",
+                        "maincategory_id": node.get("vendor") or "shopify",
+                        "maincategory_name": node.get("vendor") or "Shopify",
+                        "updatedAt": node.get("updatedAt"),
+                    }
+                )
+
+            page_info = products.get("pageInfo", {})
+            if not page_info.get("hasNextPage"):
+                break
+            cursor = page_info.get("endCursor")
+
+    return _products_dataframe_from_rows(rows)
+
+
+def _random_danish_name():
+    return f"{random.choice(DANISH_FIRST_NAMES)} {random.choice(DANISH_LAST_NAMES)}"
+
+
+def _random_danish_address():
+    city, zip_range = random.choice(DANISH_CITIES)
+    zip_start, zip_end = zip_range.split("-")
+    zip_code = random.randint(int(zip_start), int(zip_end))
+    street_num = random.randint(1, 200)
+    return f"Golfvej {street_num}", city, str(zip_code)
+
+
+def create_product(
+    access_token: str,
+    shop: str,
+    title: str,
+    product_type: str,
+    vendor: str,
+    price: float,
+) -> dict[str, Any]:
+    response = httpx.post(
+        f"https://{shop}/admin/api/{SHOPIFY_API_VERSION}/products.json",
+        headers={
+            "Content-Type": "application/json",
+            "X-Shopify-Access-Token": access_token,
+        },
+        json={
+            "product": {
+                "title": title,
+                "product_type": product_type,
+                "vendor": vendor,
+                "variants": [
+                    {
+                        "price": str(price),
+                        "inventory_policy": "deny",
+                        "inventory_quantity": 100,
+                    }
+                ],
+            }
+        },
+        timeout=60.0,
+    )
+    response.raise_for_status()
+    data = response.json()
+    return data.get("product", {})
+
+
+def create_products(
+    access_token: str,
+    shop: str,
+    product_count: int = 20,
+) -> list[dict[str, Any]]:
+    created = []
+    for i in range(product_count):
+        template = GOLF_PRODUCT_TEMPLATES[i % len(GOLF_PRODUCT_TEMPLATES)]
+        title, vendor, product_type, price = template
+        if i >= len(GOLF_PRODUCT_TEMPLATES):
+            title = f"{title} {i // len(GOLF_PRODUCT_TEMPLATES) + 1}"
+
+        product = create_product(access_token, shop, title, product_type, vendor, price)
+        created.append(product)
+        print(f"  Created product: {title}")
+        import time
+
+        time.sleep(0.5)
+
+    return created
+
+
+def create_orders(
+    access_token: str,
+    shop: str,
+    products: list[dict[str, Any]],
+    order_count: int = 10,
+) -> list[dict[str, Any]]:
+    created = []
+    for i in range(order_count):
+        selected = random.sample(products, min(random.randint(1, 3), len(products)))
+        line_items = []
+        for p in selected:
+            pid = p.get("id", "")
+            if pid:
+                numeric_id = pid.replace("gid://shopify/Product/", "")
+                price = random.uniform(100, 2000)
+                line_items.append(
+                    {
+                        "product_id": numeric_id,
+                        "quantity": random.randint(1, 3),
+                        "price": f"{price:.2f}",
+                    }
+                )
+
+        if not line_items:
+            continue
+
+        email = f"kunde{i + 1}@golfmail.dk"
+        response = httpx.post(
+            f"https://{shop}/admin/api/{SHOPIFY_API_VERSION}/orders.json",
+            headers={
+                "Content-Type": "application/json",
+                "X-Shopify-Access-Token": access_token,
+            },
+            json={
+                "order": {
+                    "line_items": line_items,
+                    "email": email,
+                    "financial_status": "paid",
+                }
+            },
+            timeout=60.0,
+        )
+        if response.status_code != 200:
+            print(f"  Error: {response.status_code} - {response.text[:300]}")
+        response.raise_for_status()
+        order = response.json().get("order", {})
+        created.append(order)
+        print(f"  Created order: {order.get('name', 'Order')}")
+        import time
+
+        time.sleep(0.5)
+
+    return created
+
+
+def create_draft_order(
+    access_token: str,
+    shop: str,
+    product_ids: list[str],
+    customer_email: str | None = None,
+) -> dict[str, Any]:
+    mutation = """
+    mutation DraftOrderCreate($input: DraftOrderInput!) {
+        draftOrderCreate(input: $input) {
+            draftOrder {
+                id
+                name
+                totalPrice
+            }
+            userErrors {
+                field
+                message
+            }
+        }
+    }
+    """
+    line_items = [
+        {"quantity": random.randint(1, 3), "variantId": pid}
+        for pid in product_ids[: random.randint(1, min(5, len(product_ids)))]
+    ]
+
+    input_data = {
+        "lineItems": line_items,
+        "useCustomerDefaultAddress": customer_email is None,
+    }
+
+    if customer_email:
+        input_data["email"] = customer_email
+
+    payload = _graphql_request(shop, access_token, mutation, {"input": input_data})
+
+    result = payload.get("draftOrderCreate", {})
+    if result.get("userErrors"):
+        errors = result["userErrors"]
+        raise RuntimeError(f"Shopify draft order create error: {errors}")
+
+    return result.get("draftOrder", {})
+
+
+def complete_draft_order(
+    access_token: str,
+    shop: str,
+    draft_order_id: str,
+) -> dict[str, Any]:
+    mutation = """
+    mutation DraftOrderComplete($input: DraftOrderCompleteInput!) {
+        draftOrderComplete(input: $input) {
+            order {
+                id
+                name
+                totalPriceSet {
+                    shopMoney {
+                        amount
+                    }
+                }
+            }
+            userErrors {
+                field
+                message
+            }
+        }
+    }
+    """
+    payload = _graphql_request(
+        shop, access_token, mutation, {"input": {"draftOrderId": draft_order_id}}
+    )
+
+    result = payload.get("draftOrderComplete", {})
+    if result.get("userErrors"):
+        errors = result["userErrors"]
+        raise RuntimeError(f"Shopify draft order complete error: {errors}")
+
+    return result.get("order", {})
+
+
+def create_orders(
+    access_token: str,
+    shop: str,
+    products: list[dict[str, Any]],
+    order_count: int = 10,
+) -> list[dict[str, Any]]:
+    created = []
+    for i in range(order_count):
+        selected = random.sample(products, min(random.randint(1, 3), len(products)))
+
+        if not selected:
+            continue
+
+        email = f"kunde{i + 1}@golfmail.dk"
+
+        line_items = []
+        for p in selected:
+            price = round(random.uniform(100, 2000), 2)
+            line_items.append(
+                {
+                    "title": p.get("product_name", "Product"),
+                    "quantity": random.randint(1, 3),
+                    "price": str(price),
+                }
+            )
+
+        try:
+            response = httpx.post(
+                f"https://{shop}/admin/api/2024-10/orders.json",
+                headers={
+                    "Content-Type": "application/json",
+                    "X-Shopify-Access-Token": access_token,
+                },
+                json={
+                    "order": {
+                        "line_items": line_items,
+                        "email": email,
+                        "financial_status": "paid",
+                        "transactions": [
+                            {
+                                "kind": "sale",
+                                "status": "success",
+                                "amount": str(
+                                    sum(
+                                        float(l["price"]) * l["quantity"]
+                                        for l in line_items
+                                    )
+                                ),
+                            }
+                        ],
+                    }
+                },
+                timeout=60.0,
+            )
+
+            if response.status_code != 201:
+                print(f"  Error: {response.status_code} - {response.text[:200]}")
+                continue
+
+            order = response.json().get("order", {})
+            created.append(order)
+            print(f"  Created order: {order.get('name', 'Order')}")
+        except Exception as e:
+            print(f"  Error: {e}")
+            continue
+
+        import time
+
+        time.sleep(0.5)
+
+    return created
 
     query = """
     query Products($first: Int!, $after: String, $query: String) {

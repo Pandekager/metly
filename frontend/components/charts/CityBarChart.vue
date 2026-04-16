@@ -4,7 +4,7 @@
         Kunder pr. by
     </h3>
     <div class="h-80">
-      <Bar :data="chartData" :options="chartOptions" />
+      <Bar :key="isDark ? 'dark' : 'light'" :data="chartData" :options="chartOptions" />
     </div>
   </div>
 </template>
@@ -31,14 +31,14 @@ interface CityData {
 }
 
 const props = defineProps<{
-  data: CityData[]
+  data: {
+    city: string
+    revenue: number
+    order_count: number
+  }[]
 }>()
 
-console.log("CityBarChart received props.data:", props.data)
-
-watch(() => props.data, (newData) => {
-  console.log("CityBarChart data changed:", newData)
-}, { immediate: true })
+const { isDark } = useTheme()
 
 const chartData = computed(() => {
   if (!props.data || props.data.length === 0) {
@@ -67,7 +67,7 @@ const chartOptions = computed(() => ({
   plugins: {
     legend: {
       labels: {
-        color: document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#334155'
+        color: isDark.value ? '#e2e8f0' : '#334155'
       }
     }
   },
@@ -75,18 +75,18 @@ const chartOptions = computed(() => ({
     y: {
       beginAtZero: true,
       ticks: {
-        color: document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#334155'
+        color: isDark.value ? '#e2e8f0' : '#334155'
       },
       grid: {
-        color: document.documentElement.classList.contains('dark') ? '#334155' : '#e2e8f0'
+        color: isDark.value ? '#334155' : '#e2e8f0'
       }
     },
     x: {
       ticks: {
-        color: document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#334155'
+        color: isDark.value ? '#e2e8f0' : '#334155'
       },
       grid: {
-        color: document.documentElement.classList.contains('dark') ? '#334155' : '#e2e8f0'
+        color: isDark.value ? '#334155' : '#e2e8f0'
       }
     }
   }

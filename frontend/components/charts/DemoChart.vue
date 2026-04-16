@@ -20,7 +20,8 @@ import {
     Filler,
 } from "chart.js";
 import { Line } from "vue-chartjs";
-import { COLORS } from "~/utils/colors";
+
+const { isDark } = useTheme();
 
 ChartJS.register(
     CategoryScale,

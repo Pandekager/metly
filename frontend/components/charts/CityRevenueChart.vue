@@ -4,7 +4,7 @@
         Omsætning pr. by (DKK)
     </h3>
     <div class="h-80">
-      <Bar :data="chartData" :options="chartOptions" />
+      <Bar :key="isDark ? 'dark' : 'light'" :data="chartData" :options="chartOptions" />
     </div>
   </div>
 </template>
@@ -33,6 +33,8 @@ interface CityData {
 const props = defineProps<{
   data: CityData[]
 }>()
+
+const { isDark } = useTheme()
 
 console.log("CityRevenueChart received props.data:", props.data)
 
@@ -71,7 +73,7 @@ const chartOptions = computed(() => ({
   plugins: {
     legend: {
       labels: {
-        color: document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#334155'
+        color: isDark.value ? '#e2e8f0' : '#334155'
       }
     },
     tooltip: {
@@ -86,21 +88,21 @@ const chartOptions = computed(() => ({
     y: {
       beginAtZero: true,
       ticks: {
-        color: document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#334155',
+        color: isDark.value ? '#e2e8f0' : '#334155',
         callback: function(value: any) {
           return formatCurrency(value)
         }
       },
       grid: {
-        color: document.documentElement.classList.contains('dark') ? '#334155' : '#e2e8f0'
+        color: isDark.value ? '#334155' : '#e2e8f0'
       }
     },
     x: {
       ticks: {
-        color: document.documentElement.classList.contains('dark') ? '#e2e8f0' : '#334155'
+        color: isDark.value ? '#e2e8f0' : '#334155'
       },
       grid: {
-        color: document.documentElement.classList.contains('dark') ? '#334155' : '#e2e8f0'
+        color: isDark.value ? '#334155' : '#e2e8f0'
       }
     }
   }

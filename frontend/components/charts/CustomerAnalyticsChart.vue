@@ -4,7 +4,7 @@
       Kunder og omsætning pr. by
     </h3>
     <div class="h-80">
-      <Bar :data="chartData" :options="chartOptions" />
+      <Bar :key="isDark ? 'dark' : 'light'" :data="chartData" :options="chartOptions" />
     </div>
   </div>
 </template>

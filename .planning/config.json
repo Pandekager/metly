@@ -1,0 +1,23 @@
+{
+  "model_profile": "inherit",
+  "resolve_model_ids": "omit",
+  "model_overrides": {
+    "gsd-planner": "gemma4:26b",
+    "gsd-roadmapper": "gemma4:26b",
+    "gsd-executor": "gemma4:e4b",
+    "gsd-phase-researcher": "gemma4:e4b",
+    "gsd-project-researcher": "gemma4:e4b",
+    "gsd-research-synthesizer": "gemma4:e4b",
+    "gsd-debugger": "gemma4:e4b",
+    "gsd-codebase-mapper": "gemma4:e2b",
+    "gsd-verifier": "gemma4:e4b",
+    "gsd-plan-checker": "gemma4:e2b",
+    "gsd-integration-checker": "gemma4:e2b",
+    "gsd-nyquist-auditor": "gemma4:e2b",
+    "gsd-code-reviewer": "gemma4:e2b",
+    "gsd-ui-researcher": "gemma4:e4b",
+    "gsd-ui-checker": "gemma4:e2b",
+    "gsd-security-auditor": "gemma4:e4b",
+    "gsd-advisor-researcher": "gemma4:e2b"
+  }
+}
