@@ -148,11 +148,26 @@
 
                         <div
                             v-else-if="activeTab === 'produkter'"
-                            class="text-center py-12"
+                            class="space-y-6"
                         >
-                            <p class="text-slate-500 dark:text-slate-400">
-                                Produkter data er under udvikling
-                            </p>
+                            <ProductAnalyticsChart
+                                v-if="productAnalytics?.sales_trends?.length"
+                                :top-products="productAnalytics?.top_products || []"
+                                :sales-trends="productAnalytics?.sales_trends || []"
+                            />
+                            <ProductTable
+                                v-if="productAnalytics?.top_products?.length"
+                                :products="productAnalytics?.top_products || []"
+                            />
+                            <AIBusinessAdvice
+                                v-if="productAdvice?.length"
+                                :advice="productAdvice"
+                            />
+                            <div v-if="!productAnalytics?.top_products?.length" class="text-center py-12">
+                                <p class="text-slate-500 dark:text-slate-400">
+                                    Ingen produktdata tilgængelig endnu
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -166,8 +181,11 @@
 import { ref, onMounted, onBeforeUnmount, computed, watch } from "vue";
 import type { Forecast } from "~/types/forecast";
 import type { ForecastBusinessAdvice } from "~/types/forecast-business-advice";
+import type { ProductAnalytics, ProductTrend, ProductAnalyticsResponse } from "~/types/product";
 import CustomerAnalyticsChart from "~/components/charts/CustomerAnalyticsChart.vue";
 import CustomerMap from "~/components/maps/CustomerMap.vue";
+import ProductAnalyticsChart from "~/components/charts/ProductAnalyticsChart.vue";
+import ProductTable from "~/components/tables/ProductTable.vue";
 
 interface CityAnalytics {
   city: string
@@ -218,6 +236,8 @@ const loading = ref(false);
 const forecasts = ref<Forecast[] | null>(null);
 const advice = ref<ForecastBusinessAdvice[] | null>(null);
 const analyticsData = ref<CityAnalytics[] | null>(null);
+const productAnalytics = ref<ProductAnalyticsResponse | null>(null);
+const productAdvice = ref<ForecastBusinessAdvice[] | null>(null);
 const onboardingStatus = ref<OnboardingStatus | null>(null);
 let onboardingInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -316,6 +336,25 @@ const fetchAnalytics = async () => {
   }
 };
 
+const fetchProductAnalytics = async () => {
+  try {
+    const data = await $fetch<ProductAnalyticsResponse>("/api/product_analytics");
+    productAnalytics.value = data;
+  } catch (error) {
+    console.error("Failed to fetch product analytics:", error);
+  }
+};
+
+const fetchProductAdvice = async () => {
+  try {
+    const data = await $fetch("/api/product_business_advice");
+    const entries = Array.isArray(data) ? data : [data];
+    productAdvice.value = entries.filter((entry: any) => entry?.response_text?.trim?.());
+  } catch (error) {
+    console.error("Failed to fetch product advice:", error);
+  }
+};
+
 onMounted(() => {
   loading.value = true;
   fetchOnboardingStatus()
@@ -346,6 +385,12 @@ watch(activeTab, (newTab) => {
   if (newTab === 'kunder') {
     if (!analyticsData.value || analyticsData.value.length === 0) {
       fetchAnalytics();
+    }
+  }
+  if (newTab === 'produkter') {
+    if (!productAnalytics.value) {
+      fetchProductAnalytics();
+      fetchProductAdvice();
     }
   }
 });
