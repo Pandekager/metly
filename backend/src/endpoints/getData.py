@@ -30,6 +30,7 @@ except Exception as e:
 from .customerAnalytics import router as customer_analytics_router
 from .productAnalytics import router as product_analytics_router
 from .shopify import router as shopify_router
+from .order_flow_analysis import router as order_flow_router, _init_order_flow_globals
 
 app = FastAPI(title="Metly - Forecasts endpoint")
 
@@ -37,6 +38,11 @@ app = FastAPI(title="Metly - Forecasts endpoint")
 app.include_router(customer_analytics_router)
 app.include_router(product_analytics_router)
 app.include_router(shopify_router)
+app.include_router(
+    order_flow_router,
+    prefix="/api",
+    tags=["Order Flow Analysis"],
+)
 
 # Globals populated at startup
 conn = None
@@ -90,6 +96,10 @@ def initialize_app():
         logger.info(
             f"Database connection successful. Users loaded: {len(df_users) if df_users is not None else 0}"
         )
+
+        # Initialize order flow analysis globals
+        _init_order_flow_globals(conn, JWT_SECRET, JWT_ALGORITHM)
+        logger.info("Initialized order flow analysis module")
     except Exception as e:
         logger.error(f"Failed to connect to DB: {e}", exc_info=True)
         raise RuntimeError(f"Failed to connect to DB: {e}")
