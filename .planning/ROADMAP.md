@@ -20,7 +20,7 @@
 
 ### v1.1 (In Progress)
 
-- [ ] Phase 20: Order Flow Analysis (order lifecycle, delays, bottlenecks)
+- [x] Phase 20: Order Flow Analysis (order lifecycle, delays, bottlenecks) — 2/2 plans
 - [ ] Phase 21: Revenue Leak Detection (failed payments, uncompleted orders)
 - [ ] Phase 22: Refund & Return Analysis (high-refund products, patterns)
 - [ ] Phase 23: Checkout Drop-off Analysis (abandonment stages)
