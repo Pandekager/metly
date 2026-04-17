@@ -181,6 +181,20 @@
                                 </div>
                             </template>
                         </div>
+
+                        <div
+                            v-else-if="activeTab === 'indtaegtslaekage'"
+                            class="space-y-6"
+                        >
+                            <RevenueLeakChart />
+                        </div>
+
+                        <div
+                            v-else-if="activeTab === 'returner'"
+                            class="space-y-6"
+                        >
+                            <RefundReturnChart />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -199,6 +213,8 @@ import CustomerMap from "~/components/maps/CustomerMap.vue";
 import ProductAnalyticsChart from "~/components/charts/ProductAnalyticsChart.vue";
 import ProductTable from "~/components/tables/ProductTable.vue";
 import OrderFlowChart from "~/components/charts/OrderFlowChart.vue";
+import RevenueLeakChart from "~/components/charts/RevenueLeakChart.vue";
+import RefundReturnChart from "~/components/charts/RefundReturnChart.vue";
 
 interface CityAnalytics {
   city: string
@@ -243,6 +259,8 @@ const tabs = [
     { id: "ordre-flow", label: "Ordre flow" },
     { id: "kunder", label: "Kunder" },
     { id: "produkter", label: "Produkter" },
+    { id: "indtaegtslaekage", label: "Indtægtslækage" },
+    { id: "returner", label: "Returner" },
 ];
 
 const activeTab = ref("ordrer");

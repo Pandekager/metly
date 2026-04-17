@@ -31,6 +31,14 @@ from .customerAnalytics import router as customer_analytics_router
 from .productAnalytics import router as product_analytics_router
 from .shopify import router as shopify_router
 from .order_flow_analysis import router as order_flow_router, _init_order_flow_globals
+from .revenue_leak_analysis import (
+    router as revenue_leak_router,
+    _init_revenue_leak_globals,
+)
+from .refund_return_analysis import (
+    router as refund_return_router,
+    _init_refund_return_globals,
+)
 
 app = FastAPI(title="Metly - Forecasts endpoint")
 
@@ -42,6 +50,16 @@ app.include_router(
     order_flow_router,
     prefix="/api",
     tags=["Order Flow Analysis"],
+)
+app.include_router(
+    revenue_leak_router,
+    prefix="/api",
+    tags=["Revenue Leak Analysis"],
+)
+app.include_router(
+    refund_return_router,
+    prefix="/api",
+    tags=["Refund & Return Analysis"],
 )
 
 # Globals populated at startup
@@ -100,6 +118,14 @@ def initialize_app():
         # Initialize order flow analysis globals
         _init_order_flow_globals(conn, JWT_SECRET, JWT_ALGORITHM)
         logger.info("Initialized order flow analysis module")
+
+        # Initialize revenue leak analysis globals
+        _init_revenue_leak_globals(conn, JWT_SECRET, JWT_ALGORITHM)
+        logger.info("Initialized revenue leak analysis module")
+
+        # Initialize refund return analysis globals
+        _init_refund_return_globals(conn, JWT_SECRET, JWT_ALGORITHM)
+        logger.info("Initialized refund return analysis module")
     except Exception as e:
         logger.error(f"Failed to connect to DB: {e}", exc_info=True)
         raise RuntimeError(f"Failed to connect to DB: {e}")
@@ -405,17 +431,26 @@ def login_user(credentials: LoginRequest):
 
         password = credentials.password[:72]
 
+        logger.debug(
+            f"Verifying password for {credentials.email}: input length={len(password)}, hash starts with {db_password[:20]}..."
+        )
+
         try:
-            if not pwd_context.verify(password, db_password):
+            result = pwd_context.verify(password, db_password)
+            logger.debug(f"Verification result: {result}")
+            if not result:
                 logger.warning(
                     f"Password verification failed for user: {credentials.email}"
                 )
                 raise HTTPException(status_code=401, detail="Invalid email or password")
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Password verification error for {credentials.email}: {e}")
             raise HTTPException(status_code=401, detail="Invalid email or password")
 
         logger.info(f"Login successful for user: {credentials.email}")
+        return {"user_id": user_id}
         return {"user_id": user_id}
     except HTTPException:
         raise
