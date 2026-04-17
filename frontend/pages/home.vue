@@ -125,6 +125,13 @@
                         </div>
 
                         <div
+                            v-else-if="activeTab === 'ordre-flow'"
+                            class="space-y-6"
+                        >
+                            <OrderFlowChart />
+                        </div>
+
+                        <div
                             v-else-if="activeTab === 'kunder'"
                             class="space-y-6"
                         >
@@ -191,6 +198,7 @@ import CustomerAnalyticsChart from "~/components/charts/CustomerAnalyticsChart.v
 import CustomerMap from "~/components/maps/CustomerMap.vue";
 import ProductAnalyticsChart from "~/components/charts/ProductAnalyticsChart.vue";
 import ProductTable from "~/components/tables/ProductTable.vue";
+import OrderFlowChart from "~/components/charts/OrderFlowChart.vue";
 
 interface CityAnalytics {
   city: string
@@ -232,6 +240,7 @@ const isDemoUser = computed(() => authStore.user?.email === "demo@metly.dk");
 
 const tabs = [
     { id: "ordrer", label: "Ordrer" },
+    { id: "ordre-flow", label: "Ordre flow" },
     { id: "kunder", label: "Kunder" },
     { id: "produkter", label: "Produkter" },
 ];
