@@ -302,7 +302,9 @@ def _select_products_for_order(date: datetime) -> List[Dict]:
     """Select products for an order with realistic patterns."""
     products = []
     num_items = random.choices(
-        [1, 2, 3, 4, 5], weights=[40, 30, 15, 10, 5], k=1  # Most orders have 1-2 items
+        [1, 2, 3, 4, 5],
+        weights=[40, 30, 15, 10, 5],
+        k=1,  # Most orders have 1-2 items
     )[0]
 
     month = date.month
@@ -557,6 +559,50 @@ def makeDummyData(conn: pymysql.Connection, user_id):
                             None,
                         ]
                     ),
+                    # Order status for revenue leak analysis
+                    # 3% payment_failed, 5% cancelled, 2% refunded
+                    "orderStatus": (
+                        "payment_failed"
+                        if random.random() < 0.03
+                        else "cancelled"
+                        if random.random() < 0.05
+                        else "refunded"
+                        if random.random() < 0.02
+                        else "completed"
+                    ),
+                    # Order flow analysis fields
+                    "processed_at": (
+                        order_time + timedelta(hours=random.randint(1, 12))
+                    ).strftime("%Y-%m-%d %H:%M:%S")
+                    if random.random() > 0.1
+                    else None,
+                    "fulfilled_at": (
+                        order_time
+                        + timedelta(
+                            days=random.randint(1, 5), hours=random.randint(0, 23)
+                        )
+                    ).strftime("%Y-%m-%d %H:%M:%S")
+                    if random.random() > 0.1
+                    else None,
+                    "cancelled_at": (
+                        order_time + timedelta(days=random.randint(1, 3))
+                    ).strftime("%Y-%m-%d %H:%M:%S")
+                    if random.random() < 0.05  # Same as cancelled status
+                    else None,
+                    "closed_at": (
+                        order_time + timedelta(days=random.randint(5, 14))
+                    ).strftime("%Y-%m-%d %H:%M:%S")
+                    if random.random() > 0.15
+                    else None,
+                    "fulfillment_status": "fulfilled"
+                    if random.random() > 0.1
+                    else ("cancelled" if random.random() > 0.8 else "pending"),
+                    "tracking_number": f"TRK{random.randint(100000, 999999)}"
+                    if random.random() > 0.1
+                    else None,
+                    "carrier": random.choice(["PostNord", "GLS", "DAO", "Bring"])
+                    if random.random() > 0.1
+                    else None,
                 }
             )
 
@@ -602,8 +648,9 @@ def makeDummyData(conn: pymysql.Connection, user_id):
         with conn.cursor() as cursor:
             insert_sql = """
                 INSERT INTO orders (id, user_id, totalItems, total, currency_symbol,
-                                   createdAt, customer_id, language_id, referrer)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                   createdAt, customer_id, language_id, referrer,
+                                   orderStatus, cancelledAt)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
             params = [
                 (
@@ -616,6 +663,8 @@ def makeDummyData(conn: pymysql.Connection, user_id):
                     o["customer_id"],
                     o["language_id"],
                     o["referrer"],
+                    o.get("orderStatus", "completed"),
+                    o.get("cancelledAt"),
                 )
                 for o in all_orders
             ]

@@ -35,6 +35,18 @@ CREATE TABLE IF NOT EXISTS orders (
   customer_id VARCHAR(255) NULL,
   language_id VARCHAR(100) NULL,
   referrer VARCHAR(2048) NULL,
+  -- Revenue leak analysis fields
+  orderStatus VARCHAR(50) NULL DEFAULT 'completed',
+  cancelledAt DATETIME NULL,
+  -- Order flow analysis fields
+  processed_at DATETIME NULL,
+  fulfilled_at DATETIME NULL,
+  cancelled_at DATETIME NULL,
+  closed_at DATETIME NULL,
+  fulfillment_status VARCHAR(50) NULL,
+  tracking_number VARCHAR(255) NULL,
+  carrier VARCHAR(100) NULL,
+  shipping_address TEXT NULL,
   created DATETIME DEFAULT CURRENT_TIMESTAMP,
   KEY idx_orders_user_id (user_id),
   CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES metlydk_main.users(id) ON DELETE SET NULL ON UPDATE CASCADE
