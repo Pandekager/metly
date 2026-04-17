@@ -148,11 +148,11 @@ def get_refund_return_analysis(user_id: UUID = Depends(_require_auth())):
                     o.total,
                     o.orderStatus,
                     o.createdAt,
-                    o.closedAt as refundedAt,
+                    o.closed_at as refundedAt,
                     ol.product_id,
-                    p.name as product_name,
-                    ol.quantity,
-                    (ol.quantity * ol.price) as line_total
+                    p.product_name,
+                    ol.amount,
+                    (ol.amount * ol.unit_revenue) as line_total
                 FROM metlydk_main.orders o
                 LEFT JOIN metlydk_main.order_lines ol ON o.id = ol.order_id
                 LEFT JOIN metlydk_main.products p ON ol.product_id = p.id
@@ -240,7 +240,7 @@ def get_refund_return_analysis(user_id: UUID = Depends(_require_auth())):
 
                 # Calculate refund rate per product
                 all_product_query = text("""
-                    SELECT product_id, COUNT(*) as order_count, SUM(quantity * price) as revenue
+                    SELECT product_id, COUNT(*) as order_count, SUM(amount * unit_revenue) as revenue
                     FROM metlydk_main.order_lines
                     WHERE user_id = :user_id
                     GROUP BY product_id

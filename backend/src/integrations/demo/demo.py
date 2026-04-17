@@ -541,6 +541,124 @@ def makeDummyData(conn: pymysql.Connection, user_id):
                     }
                 )
 
+            # Determine order status with explicit cumulative percentages
+            # 3% payment_failed, 5% cancelled, 2% refunded, 90% completed
+            rand_status = random.random()
+            if rand_status < 0.03:
+                order_status = "payment_failed"
+            elif rand_status < 0.08:  # 3% + 5%
+                order_status = "cancelled"
+            elif rand_status < 0.10:  # 8% + 2%
+                order_status = "refunded"
+            else:
+                order_status = "completed"
+
+            # Generate fulfillment timestamps based on status
+            if order_status in ["payment_failed", "cancelled"]:
+                # Failed/cancelled orders: processed but not fulfilled
+                processed_at = (
+                    (order_time + timedelta(hours=random.randint(1, 6))).strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    )
+                    if random.random() > 0.2
+                    else None
+                )
+                fulfilled_at = None  # Never fulfilled
+                cancelled_at = (
+                    order_time
+                    + timedelta(days=random.randint(1, 3), hours=random.randint(0, 12))
+                ).strftime("%Y-%m-%d %H:%M:%S")
+                closed_at = None  # No closed_at for failed orders
+                fulfillment_status = "cancelled"
+                tracking_number = None
+                carrier = None
+            elif order_status == "refunded":
+                # Refunded orders: processed, fulfilled, then closed/refunded
+                processed_at_dt = (
+                    order_time + timedelta(hours=random.randint(1, 8))
+                    if random.random() > 0.05
+                    else None
+                )
+                fulfilled_at_dt = (
+                    order_time
+                    + timedelta(days=random.randint(2, 5), hours=random.randint(0, 12))
+                    if random.random() > 0.05
+                    else None
+                )
+                # closed_at represents when refund was processed (after fulfillment)
+                closed_at_dt = (
+                    fulfilled_at_dt + timedelta(days=random.randint(5, 15))
+                    if fulfilled_at_dt
+                    else None
+                )
+                processed_at = (
+                    processed_at_dt.strftime("%Y-%m-%d %H:%M:%S")
+                    if processed_at_dt
+                    else None
+                )
+                fulfilled_at = (
+                    fulfilled_at_dt.strftime("%Y-%m-%d %H:%M:%S")
+                    if fulfilled_at_dt
+                    else None
+                )
+                cancelled_at = None
+                closed_at = (
+                    closed_at_dt.strftime("%Y-%m-%d %H:%M:%S") if closed_at_dt else None
+                )
+                fulfillment_status = "fulfilled"
+                tracking_number = (
+                    f"TRK{random.randint(100000, 999999)}"
+                    if random.random() > 0.05
+                    else None
+                )
+                carrier = (
+                    random.choice(["PostNord", "GLS", "DAO", "Bring"])
+                    if tracking_number
+                    else None
+                )
+            else:
+                # Completed orders: normal flow
+                processed_at_dt = (
+                    order_time + timedelta(hours=random.randint(1, 12))
+                    if random.random() > 0.1
+                    else None
+                )
+                fulfilled_at_dt = (
+                    processed_at_dt + timedelta(days=random.randint(1, 4))
+                    if processed_at_dt and random.random() > 0.1
+                    else None
+                )
+                closed_at_dt = (
+                    fulfilled_at_dt + timedelta(days=random.randint(5, 14))
+                    if fulfilled_at_dt and random.random() > 0.15
+                    else None
+                )
+                processed_at = (
+                    processed_at_dt.strftime("%Y-%m-%d %H:%M:%S")
+                    if processed_at_dt
+                    else None
+                )
+                fulfilled_at = (
+                    fulfilled_at_dt.strftime("%Y-%m-%d %H:%M:%S")
+                    if fulfilled_at_dt
+                    else None
+                )
+                cancelled_at = None
+                closed_at = (
+                    closed_at_dt.strftime("%Y-%m-%d %H:%M:%S") if closed_at_dt else None
+                )
+                fulfillment_status = "fulfilled" if fulfilled_at else "pending"
+                tracking_number = (
+                    f"TRK{random.randint(100000, 999999)}"
+                    if fulfilled_at and random.random() > 0.1
+                    else None
+                )
+                carrier = (
+                    random.choice(["PostNord", "GLS", "DAO", "Bring"])
+                    if tracking_number
+                    else None
+                )
+
             all_orders.append(
                 {
                     "id": order_id,
@@ -560,49 +678,15 @@ def makeDummyData(conn: pymysql.Connection, user_id):
                         ]
                     ),
                     # Order status for revenue leak analysis
-                    # 3% payment_failed, 5% cancelled, 2% refunded
-                    "orderStatus": (
-                        "payment_failed"
-                        if random.random() < 0.03
-                        else "cancelled"
-                        if random.random() < 0.05
-                        else "refunded"
-                        if random.random() < 0.02
-                        else "completed"
-                    ),
+                    "orderStatus": order_status,
                     # Order flow analysis fields
-                    "processed_at": (
-                        order_time + timedelta(hours=random.randint(1, 12))
-                    ).strftime("%Y-%m-%d %H:%M:%S")
-                    if random.random() > 0.1
-                    else None,
-                    "fulfilled_at": (
-                        order_time
-                        + timedelta(
-                            days=random.randint(1, 5), hours=random.randint(0, 23)
-                        )
-                    ).strftime("%Y-%m-%d %H:%M:%S")
-                    if random.random() > 0.1
-                    else None,
-                    "cancelled_at": (
-                        order_time + timedelta(days=random.randint(1, 3))
-                    ).strftime("%Y-%m-%d %H:%M:%S")
-                    if random.random() < 0.05  # Same as cancelled status
-                    else None,
-                    "closed_at": (
-                        order_time + timedelta(days=random.randint(5, 14))
-                    ).strftime("%Y-%m-%d %H:%M:%S")
-                    if random.random() > 0.15
-                    else None,
-                    "fulfillment_status": "fulfilled"
-                    if random.random() > 0.1
-                    else ("cancelled" if random.random() > 0.8 else "pending"),
-                    "tracking_number": f"TRK{random.randint(100000, 999999)}"
-                    if random.random() > 0.1
-                    else None,
-                    "carrier": random.choice(["PostNord", "GLS", "DAO", "Bring"])
-                    if random.random() > 0.1
-                    else None,
+                    "processed_at": processed_at,
+                    "fulfilled_at": fulfilled_at,
+                    "cancelled_at": cancelled_at,
+                    "closed_at": closed_at,
+                    "fulfillment_status": fulfillment_status,
+                    "tracking_number": tracking_number,
+                    "carrier": carrier,
                 }
             )
 
