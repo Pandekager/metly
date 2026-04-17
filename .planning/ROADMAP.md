@@ -21,8 +21,12 @@
 ### v1.1 (In Progress)
 
 - [x] Phase 20: Order Flow Analysis (order lifecycle, delays, bottlenecks) — 2/2 plans
-- [ ] Phase 21: Revenue Leak Detection (failed payments, uncompleted orders)
-- [ ] Phase 22: Refund & Return Analysis (high-refund products, patterns)
+- [x] Phase 21: Revenue Leak Detection (failed payments, uncompleted orders) — 2/2 plans
+- [ ] Phase 22: Refund & Return Analysis (high-refund products, patterns) — 2/2 plans
+
+Plans:
+- [ ] 22-01-PLAN.md — Backend refund/return analysis API
+- [ ] 22-02-PLAN.md — Frontend RefundReturnChart component
 - [ ] Phase 23: Checkout Drop-off Analysis (abandonment stages)
 - [ ] Phase 24: Operational Bottlenecks (fulfillment inefficiencies)
 - [ ] Phase 25: Customer Behavior Insights (retention impact)
