@@ -1,6 +1,10 @@
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 import os
+
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1"
 import pymysql
 import pandas as pd
 from sqlalchemy import create_engine
@@ -276,17 +280,24 @@ def populateDB(db_usr, db_pwd, user_ids=None, raise_on_error: bool = False):
     try:
         # Summary for inserted rows. Cursors are created as needed using context managers
         # to avoid holding many open cursors at once.
-        summary = {
-            "customers": 0,
-            "products": 0,
-            "languages": 0,
-            "orders": 0,
-            "product_categories": 0,
-            "order_lines": 0,
-        }
+        print("[DEBUG] About to iterate over users")
+        print(f"[DEBUG] Number of users: {len(df_users)}")
+
+        skip_dandomain_modern = (
+            os.getenv("SKIP_DANDOMAIN_MODERN", "false").lower() == "true"
+        )
+        print(f"[DEBUG] SKIP_DANDOMAIN_MODERN = {skip_dandomain_modern}")
 
         for idx, row in df_users.iterrows():
+            print(
+                f"[DEBUG] Processing user {idx}: {row.get('username')} ({row.get('platform_name')})"
+            )
             if row.get("platform_name") == "Dandomain Modern":
+                if skip_dandomain_modern:
+                    print(
+                        f"Skipping Dandomain Modern for {row.get('username')} (SKIP_DANDOMAIN_MODERN=true)"
+                    )
+                    continue
                 tenant = row.get("tenant")
                 client_id = row.get("client_id")
                 client_secret = row.get("client_secret")
@@ -503,10 +514,16 @@ def populateDB(db_usr, db_pwd, user_ids=None, raise_on_error: bool = False):
                 else:
                     print("  No product_categories to insert")
 
+                print(
+                    f"  [DEBUG] About to process order_lines for user {row.get('id')}"
+                )
                 # Insert order_lines
                 df_order_lines = orders.get("order_lines")
                 if df_order_lines is not None and not df_order_lines.empty:
                     print(f"  Inserting {len(df_order_lines)} order lines")
+                    print(
+                        f"  [DEBUG] Order lines DataFrame shape: {df_order_lines.shape}"
+                    )
                     # order_lines table cleared above
                     params = [
                         (
@@ -569,12 +586,18 @@ def populateDB(db_usr, db_pwd, user_ids=None, raise_on_error: bool = False):
                         """
 
                     chunk_size = 1000
+                    print(f"  [DEBUG] Inserting order_lines in chunks of {chunk_size}")
                     with conn.cursor() as cursor:
                         for i in range(0, len(params), chunk_size):
-                            chunk = params[i : i + chunk_size]
+                            print(
+                                f"  [DEBUG] Inserting chunk {i // chunk_size + 1}: {len(chunk)} rows"
+                            )
                             cursor.executemany(insert_sql, chunk)
                             conn.commit()
                             summary["order_lines"] += len(chunk)
+                    print(
+                        f"  [DEBUG] Finished inserting order_lines for user {row.get('id')}"
+                    )
                 else:
                     print("  No order lines to insert")
 
@@ -1120,8 +1143,10 @@ def populateDB(db_usr, db_pwd, user_ids=None, raise_on_error: bool = False):
 
             # commit after processing each user
             print(f"Committing changes: {summary}")
+            print(f"  [DEBUG] About to commit for user {row.get('id')}")
             try:
                 conn.commit()
+                print(f"  [DEBUG] Commit succeeded for user {row.get('id')}")
             except Exception as e:
                 print(f"  Warning: commit failed: {e}")
             print("Commit complete")
@@ -1136,6 +1161,10 @@ def populateDB(db_usr, db_pwd, user_ids=None, raise_on_error: bool = False):
         except Exception:
             pass
 
+    print("[DEBUG] populateDB function completed successfully")
+
 
 if __name__ == "__main__":
+    print("[DEBUG] Starting populateDB from main")
     populateDB(db_usr, db_pwd)
+    print("[DEBUG] populateDB called from __main__ finished")

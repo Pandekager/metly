@@ -4,12 +4,14 @@ from typing import List
 from uuid import UUID
 import logging
 import os
-from sqlalchemy import text
+
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1"
+import pymysql
 from jose import jwt, JWTError
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
-
-from src.scripts.db.populateDB import connectDB
 
 logger = logging.getLogger(__name__)
 
@@ -28,16 +30,12 @@ async def get_current_user(
         if JWT_SECRET is None:
             raise HTTPException(status_code=500, detail="JWT_SECRET not configured")
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-
-    sub = payload.get("sub")
-    if not sub:
-        raise HTTPException(status_code=401, detail="Token missing subject (sub)")
-    try:
-        return UUID(sub)
-    except Exception:
-        raise HTTPException(status_code=401, detail="Token subject is not a valid UUID")
+        user_id = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        return UUID(user_id)
+    except JWTError as e:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 
 class ProductAnalytics(BaseModel):
@@ -70,91 +68,106 @@ def get_product_analytics(current_user: UUID = Depends(get_current_user)):
     load_dotenv("./.env")
     db_usr = os.getenv("DB_USR")
     db_pwd = os.getenv("DB_PWD")
+    db_host = os.getenv("DB_HOST", "metly.dk")
 
     if not db_usr or not db_pwd:
         raise HTTPException(status_code=500, detail="Database configuration error")
 
-    conn, _ = connectDB(db_usr, db_pwd)
-    if conn is None:
+    try:
+        conn = pymysql.connect(
+            host=db_host,
+            user=db_usr,
+            password=db_pwd,
+            database="metlydk_main",
+            cursorclass=pymysql.cursors.DictCursor,
+        )
+    except Exception as e:
+        logger.error(f"Database connection failed: {e}")
         raise HTTPException(status_code=500, detail="Database connection failed")
 
     try:
-        # Query for top products
-        products_sql = text("""
-            SELECT
-                p.id AS product_id,
-                p.product_name,
-                p.subcategory_name,
-                COALESCE(SUM(ol.amount), 0) AS units_sold,
-                COALESCE(SUM(ol.unit_revenue * ol.amount), 0) AS total_revenue,
-                COUNT(DISTINCT ol.order_id) AS order_count
-            FROM products p
-            LEFT JOIN order_lines ol ON p.id = ol.product_id
-            WHERE p.user_id = :user_id
-            GROUP BY p.id, p.product_name, p.subcategory_name
-            HAVING SUM(ol.amount) > 0
-            ORDER BY total_revenue DESC
-            LIMIT 50
-        """)
+        user_id_str = str(current_user)
 
-        # Query for monthly trends per product
-        trends_sql = text("""
-            SELECT
-                p.product_name,
-                DATE_FORMAT(o.created, '%Y-%m') AS month,
-                SUM(ol.amount) AS units_sold,
-                SUM(ol.unit_revenue * ol.amount) AS revenue
-            FROM products p
-            JOIN order_lines ol ON p.id = ol.product_id
-            JOIN orders o ON ol.order_id = o.id
-            WHERE p.user_id = :user_id
-                AND o.created >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
-            GROUP BY p.id, p.product_name, month
-            ORDER BY p.product_name, month
-        """)
+        with conn.cursor() as cursor:
+            # Get products with sales data
+            products_sql = """
+                SELECT 
+                    p.id AS product_id,
+                    p.product_name,
+                    p.subcategory_name,
+                    COALESCE(ol.total_units, 0) AS units_sold,
+                    COALESCE(ol.total_revenue, 0) AS total_revenue,
+                    COALESCE(ol.order_count, 0) AS order_count
+                FROM products p
+                LEFT JOIN (
+                    SELECT 
+                        product_id,
+                        SUM(amount) AS total_units,
+                        SUM(unit_revenue * amount) AS total_revenue,
+                        COUNT(DISTINCT order_id) AS order_count
+                    FROM order_lines
+                    WHERE user_id = %s
+                    GROUP BY product_id
+                ) ol ON p.id = ol.product_id
+                WHERE p.user_id = %s
+                    AND ol.total_units > 0
+                ORDER BY ol.total_revenue DESC
+                LIMIT 50
+            """
+            cursor.execute(products_sql, (user_id_str, user_id_str))
+            products = cursor.fetchall()
 
-        top_products = []
-        sales_trends = []
-
-        with conn._sqlalchemy_engine.connect() as db_conn:
-            # Get top products
-            products_result = db_conn.execute(
-                products_sql, {"user_id": str(current_user)}
-            )
-            for row in products_result:
-                top_products.append(
-                    ProductAnalytics(
-                        product_id=str(row[0]),
-                        product_name=row[1] or "",
-                        subcategory_name=row[2] or "",
-                        units_sold=int(row[3]),
-                        total_revenue=float(row[4]),
-                        order_count=int(row[5]),
-                    )
+            top_products = [
+                ProductAnalytics(
+                    product_id=str(p["product_id"]),
+                    product_name=p["product_name"] or "",
+                    subcategory_name=p["subcategory_name"] or "",
+                    units_sold=int(p["units_sold"]) if p["units_sold"] else 0,
+                    total_revenue=float(p["total_revenue"])
+                    if p["total_revenue"]
+                    else 0.0,
+                    order_count=int(p["order_count"]) if p["order_count"] else 0,
                 )
+                for p in products
+            ]
 
-            # Get sales trends
-            trends_result = db_conn.execute(trends_sql, {"user_id": str(current_user)})
-            for row in trends_result:
-                sales_trends.append(
-                    ProductTrend(
-                        product_name=row[0] or "",
-                        month=row[1] or "",
-                        units_sold=int(row[2]),
-                        revenue=float(row[3]),
-                    )
+            # Get monthly trends
+            trends_sql = """
+                SELECT 
+                    DATE_FORMAT(o.created, '%%Y-%%m') AS month,
+                    SUM(ol.amount) AS units_sold,
+                    SUM(ol.unit_revenue * ol.amount) AS revenue
+                FROM order_lines ol
+                JOIN orders o ON ol.order_id = o.id
+                WHERE ol.user_id = %s
+                    AND o.created >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+                GROUP BY month
+                ORDER BY month
+            """
+            cursor.execute(trends_sql, (user_id_str,))
+            trends = cursor.fetchall()
+
+            sales_trends = [
+                ProductTrend(
+                    product_name="Overall",
+                    month=t["month"] or "",
+                    units_sold=int(t["units_sold"]) if t["units_sold"] else 0,
+                    revenue=float(t["revenue"]) if t["revenue"] else 0.0,
                 )
+                for t in trends
+            ]
 
+        conn.close()
         logger.info(
-            f"Returning {len(top_products)} products and {len(sales_trends)} trends for user {current_user}"
+            f"Returning {len(top_products)} products, {len(sales_trends)} trends"
         )
         return {"top_products": top_products, "sales_trends": sales_trends}
 
     except Exception as e:
         logger.error(f"Error: {e}")
+        if conn:
+            conn.close()
         raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        conn.close()
 
 
 @router.get("/product_business_advice", response_model=BusinessAdviceResponse)
@@ -165,20 +178,16 @@ def get_product_business_advice(
     ),
     current_user: UUID = Depends(get_current_user),
 ):
-    """
-    Read-only endpoint returning AI-generated product business advice for an authorized user.
-    """
     load_dotenv("./.env")
     db_usr = os.getenv("DB_USR")
     db_pwd = os.getenv("DB_PWD")
+    db_host = os.getenv("DB_HOST", "metly.dk")
 
     if not db_usr or not db_pwd:
         raise HTTPException(status_code=500, detail="Database configuration error")
 
-    # Resolve user_id (default to current_user if not provided)
     user_to_query = user_id or current_user
 
-    # Validate access
     if user_to_query != current_user:
         logger.warning(
             f"User {current_user} attempted to access data for {user_to_query}"
@@ -187,40 +196,43 @@ def get_product_business_advice(
             status_code=403, detail="Forbidden: cannot query other users"
         )
 
-    conn, _ = connectDB(db_usr, db_pwd)
-    if conn is None:
+    try:
+        conn = pymysql.connect(
+            host=db_host,
+            user=db_usr,
+            password=db_pwd,
+            database="metlydk_main",
+            cursorclass=pymysql.cursors.DictCursor,
+        )
+    except Exception as e:
+        logger.error(f"Database connection failed: {e}")
         raise HTTPException(status_code=500, detail="Database connection failed")
 
     try:
-        # Safe parameterized query using SQLAlchemy text() with named parameter
-        sql = text(
-            "SELECT response_text FROM ai_responses "
-            "WHERE ai_category_id = 'product_business_advice' "
-            "AND user_id = :user_id "
-            "ORDER BY created DESC "
-            "LIMIT 1"
-        )
+        user_id_str = str(user_to_query)
 
-        with conn._sqlalchemy_engine.connect() as db_conn:
-            result = db_conn.execute(sql, {"user_id": str(user_to_query)}).fetchone()
+        with conn.cursor() as cursor:
+            sql = """
+                SELECT response_text FROM ai_responses 
+                WHERE ai_category_id = 'product_business_advice' 
+                AND user_id = %s
+                ORDER BY created DESC 
+                LIMIT 1
+            """
+            cursor.execute(sql, (user_id_str,))
+            result = cursor.fetchone()
 
-        if not result:
-            logger.info(
-                f"No product business advice found yet for user: {user_to_query}"
-            )
-            return {"response_text": ""}
-
-        response_text = result[0]
-        logger.info(
-            f"Returning product business advice for user {user_to_query} ({len(response_text)} characters)"
-        )
-
-        return {"response_text": response_text}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Database query failed for user {user_to_query}: {e}")
-        raise HTTPException(status_code=500, detail=f"Database query failed: {e}")
-    finally:
         conn.close()
+
+        if result:
+            return {"response_text": result["response_text"]}
+        else:
+            return {
+                "response_text": "Ingen produktanalyse tilgængelig endnu. Kør produktanalyse for at få AI-anbefalinger."
+            }
+
+    except Exception as e:
+        logger.error(f"Error: {e}")
+        if conn:
+            conn.close()
+        raise HTTPException(status_code=500, detail=str(e))

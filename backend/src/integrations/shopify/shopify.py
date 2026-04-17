@@ -596,30 +596,41 @@ def create_orders(
             continue
 
         email = f"kunde{i + 1}@golfmail.dk"
-        response = httpx.post(
-            f"https://{shop}/admin/api/{SHOPIFY_API_VERSION}/orders.json",
-            headers={
-                "Content-Type": "application/json",
-                "X-Shopify-Access-Token": access_token,
-            },
-            json={
-                "order": {
-                    "line_items": line_items,
-                    "email": email,
-                    "financial_status": "paid",
-                }
-            },
-            timeout=60.0,
-        )
+
+        # Retry with backoff on rate limit
+        max_retries = 3
+        for attempt in range(max_retries):
+            response = httpx.post(
+                f"https://{shop}/admin/api/{SHOPIFY_API_VERSION}/orders.json",
+                headers={
+                    "Content-Type": "application/json",
+                    "X-Shopify-Access-Token": access_token,
+                },
+                json={
+                    "order": {
+                        "line_items": line_items,
+                        "email": email,
+                        "financial_status": "paid",
+                    }
+                },
+                timeout=60.0,
+            )
+            if response.status_code == 429:
+                wait_time = (attempt + 1) * 2  # 2, 4, 6 seconds
+                print(f"  Rate limited, waiting {wait_time}s before retry...")
+                time.sleep(wait_time)
+                continue
+            break
+
         if response.status_code != 200:
             print(f"  Error: {response.status_code} - {response.text[:300]}")
         response.raise_for_status()
         order = response.json().get("order", {})
         created.append(order)
         print(f"  Created order: {order.get('name', 'Order')}")
-        import time
 
-        time.sleep(0.5)
+        # Delay between orders to avoid rate limits
+        time.sleep(1)
 
     return created
 

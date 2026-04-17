@@ -150,24 +150,29 @@
                             v-else-if="activeTab === 'produkter'"
                             class="space-y-6"
                         >
-                            <ProductAnalyticsChart
-                                v-if="productAnalytics?.sales_trends?.length"
-                                :top-products="productAnalytics?.top_products || []"
-                                :sales-trends="productAnalytics?.sales_trends || []"
-                            />
-                            <ProductTable
-                                v-if="productAnalytics?.top_products?.length"
-                                :products="productAnalytics?.top_products || []"
-                            />
-                            <AIBusinessAdvice
-                                v-if="productAdvice?.length"
-                                :advice="productAdvice"
-                            />
-                            <div v-if="!productAnalytics?.top_products?.length" class="text-center py-12">
-                                <p class="text-slate-500 dark:text-slate-400">
-                                    Ingen produktdata tilgængelig endnu
-                                </p>
+                            <div v-if="loading" class="text-center py-8">
+                                <p class="text-slate-500 dark:text-slate-400">Indlæser produktdata...</p>
                             </div>
+                            <template v-else-if="!loading">
+                                <ProductAnalyticsChart
+                                    v-if="productAnalytics?.sales_trends?.length"
+                                    :top-products="productAnalytics?.top_products || []"
+                                    :sales-trends="productAnalytics?.sales_trends || []"
+                                />
+                                <ProductTable
+                                    v-if="productAnalytics?.top_products?.length"
+                                    :products="productAnalytics?.top_products || []"
+                                />
+                                <AIBusinessAdvice
+                                    v-if="productAdvice?.length"
+                                    :advice="productAdvice"
+                                />
+                                <div v-if="!productAnalytics?.top_products?.length" class="text-center py-12">
+                                    <p class="text-slate-500 dark:text-slate-400">
+                                        Ingen produktdata tilgængelig endnu
+                                    </p>
+                                </div>
+                            </template>
                         </div>
                     </div>
                 </div>

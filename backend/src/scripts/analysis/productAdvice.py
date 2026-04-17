@@ -77,6 +77,20 @@ def get_product_advice(db_usr, db_pwd, user_ids=None):
             columns = [desc[0] for desc in cursor.description]
             df = pd.DataFrame(results, columns=columns)
 
+            # Convert numeric columns to proper types
+            if "units_sold" in df.columns:
+                df["units_sold"] = pd.to_numeric(
+                    df["units_sold"], errors="coerce"
+                ).fillna(0)
+            if "total_revenue" in df.columns:
+                df["total_revenue"] = pd.to_numeric(
+                    df["total_revenue"], errors="coerce"
+                ).fillna(0)
+            if "order_count" in df.columns:
+                df["order_count"] = pd.to_numeric(
+                    df["order_count"], errors="coerce"
+                ).fillna(0)
+
             if df.empty:
                 logger.warning(f"No product sales data found for user {user['id']}")
                 continue

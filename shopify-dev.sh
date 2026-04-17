@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# Don't use set -e so we can handle errors gracefully
+set -uo pipefail
 
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 frontend_dir="$script_dir/frontend"
@@ -12,12 +13,14 @@ ngrok_api_url="http://127.0.0.1:4040/api/tunnels"
 reuse_existing="${REUSE_EXISTING_NGROK:-1}"
 
 cleanup() {
+  echo "Cleaning up..."
   pkill -f "uvicorn src.endpoints.getData" 2>/dev/null || true
   pkill -f "bun run dev" 2>/dev/null || true
   pkill -f "ngrok http" 2>/dev/null || true
 }
 
-trap cleanup EXIT INT TERM
+# Only cleanup on explicit exit, not on script errors
+# trap cleanup EXIT INT TERM
 
 check_existing_ngrok() {
   if curl -s "$ngrok_api_url" >/dev/null 2>&1; then
@@ -58,30 +61,43 @@ get_or_create_ngrok_url() {
 echo "Starting backend..."
 cd "$backend_dir"
 export PATH="$HOME/.local/bin:$PATH"
-uv run python -m uvicorn src.endpoints.getData:app --reload --host 127.0.0.1 --port "$backend_port" &
+uv run python -m uvicorn src.endpoints.getData:app --reload --host 127.0.0.1 --port "$backend_port" > /tmp/backend.log 2>&1 &
 BACKEND_PID=$!
 
 echo "Waiting for backend..."
-for i in {1..10}; do
+for i in {1..15}; do
   if curl -s -o /dev/null http://127.0.0.1:"$backend_port"/docs 2>/dev/null; then
+    echo "Backend is ready!"
     break
+  fi
+  if [ $i -eq 15 ]; then
+    echo "WARNING: Backend may not have started properly"
+    tail -20 /tmp/backend.log
   fi
   sleep 1
 done
 
 echo "Starting ngrok..."
-ngrok_url=$(get_or_create_ngrok_url)
+ngrok_url=$(get_or_create_ngrok_url) || { echo "ERROR: Failed to get ngrok URL"; exit 1; }
+echo "Ngrok URL: $ngrok_url"
 
 echo "Starting frontend..."
 cd "$frontend_dir"
 export NUXT_DEV_TUNNEL_URL="$ngrok_url"
-bun run dev --host 127.0.0.1 --port "$frontend_port" &
+# Frontend calls backend directly at localhost (bypasses ngrok)
+export API_BASE="http://127.0.0.1:$backend_port/api"
+bun run dev --host 127.0.0.1 --port "$frontend_port" > /tmp/frontend.log 2>&1 &
 FRONTEND_PID=$!
 
 echo "Waiting for frontend..."
 for i in {1..15}; do
   if curl -s -o /dev/null http://127.0.0.1:"$frontend_port" 2>/dev/null; then
+    echo "Frontend is ready!"
     break
+  fi
+  if [ $i -eq 15 ]; then
+    echo "WARNING: Frontend may not have started properly"
+    tail -20 /tmp/frontend.log
   fi
   sleep 1
 done
@@ -104,4 +120,23 @@ echo "  Press Ctrl+C to stop all services"
 echo "══════════════════════════════════════════════════════════════"
 echo ""
 
-wait
+# Store PIDs for cleanup
+echo "$BACKEND_PID" > /tmp/metly_backend.pid
+echo "$FRONTEND_PID" > /tmp/metly_frontend.pid
+
+# Setup signal handlers for graceful shutdown
+cleanup() {
+  echo "Shutting down..."
+  kill $BACKEND_PID 2>/dev/null || true
+  kill $FRONTEND_PID 2>/dev/null || true
+  pkill -f "ngrok http" 2>/dev/null || true
+  exit 0
+}
+
+trap cleanup SIGINT SIGTERM
+
+# Wait forever (until signal)
+echo "Services running. Press Ctrl+C to stop."
+while true; do
+  sleep 1
+done

@@ -1,4 +1,5 @@
 const devTunnelUrl = process.env.NUXT_DEV_TUNNEL_URL || process.env.DEV_TUNNEL_URL
+const backendUrl = process.env.BACKEND_URL || 'http://127.0.0.1:8000'
 const allowedHosts = ['.ngrok-free.dev']
 
 let viteServerConfig: Record<string, any> = {
@@ -31,7 +32,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     jwtSecret: process.env.JWT_SECRET,
     public: {
-      apiBase: process.env.API_BASE || 'http://127.0.0.1:8000/api'
+      apiBase: process.env.API_BASE || `http://127.0.0.1:8000/api`
     }
   },
 
@@ -42,19 +43,19 @@ export default defineNuxtConfig({
     '@nuxt/image',
   ],
 
+  vite: {
+    server: viteServerConfig,
+    optimizeDeps: {
+      exclude: []
+    }
+  },
+
   googleFonts: {
     families: {
       Montserrat: [300, 400, 500, 600, 700],
       'Leckerli One': true,
     },
     display: 'swap',
-  },
-
-  vite: {
-    server: viteServerConfig,
-    optimizeDeps: {
-      exclude: []
-    }
   },
 
   colorMode: {
