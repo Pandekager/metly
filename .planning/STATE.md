@@ -30,9 +30,9 @@ progress:
 
 ## Current Phase
 
-- **Phase:** 99 - Shopify Test Data Generator
-- **Status:** Completed
-- **Plans:** 2/2 Complete
+- **Phase:** 20 - Order Flow Analysis
+- **Status:** In progress (Plan 01 complete)
+- **Plans:** 1/2 complete
 
 ---
 
