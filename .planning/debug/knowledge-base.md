@@ -19,3 +19,11 @@ Resolved debug sessions. Used by `gsd-debugger` to surface known-pattern hypothe
 - **Fix:** Updated demo.py and populateDB.py INSERT statements to include all order flow fields. Added fulfillments/trackingInfo to Shopify GraphQL query and extraction logic.
 - **Files changed:** backend/src/integrations/demo/demo.py, backend/src/scripts/db/populateDB.py, backend/src/integrations/shopify/shopify.py
 ---
+
+## refund-return-500 — GET /api/refund_return_analysis returns 500 error
+- **Date:** 2026-04-17
+- **Error patterns:** 500, refund_return_analysis, closedAt, closed_at, quantity, amount, price, unit_revenue
+- **Root cause:** Multiple column name mismatches in SQL queries - query used camelCase/snake_case incorrectly and wrong column names (closedAt→closed_at, quantity→amount, price→unit_revenue, p.name→p.product_name). Demo data also had old records without proper order statuses.
+- **Fix:** Fixed all column names to match actual database schema. Regenerated demo data for user with proper order status distribution (3% failed, 5% cancelled, 2% refunded, 90% completed) and fulfillment timestamps.
+- **Files changed:** backend/src/endpoints/refund_return_analysis.py, backend/src/integrations/demo/demo.py
+---
