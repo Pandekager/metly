@@ -241,6 +241,10 @@ def get_orders(
             id
             createdAt
             updatedAt
+            processedAt
+            cancelledAt
+            closedAt
+            displayFulfillmentStatus
             currentTotalPriceSet {
               shopMoney {
                 amount
@@ -249,6 +253,28 @@ def get_orders(
             }
             customer {
               id
+            }
+            fulfillments(first: 10) {
+              edges {
+                node {
+                  createdAt
+                  trackingInfo(first: 10) {
+                    edges {
+                      node {
+                        number
+                        company
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            shippingLines(first: 10) {
+              edges {
+                node {
+                  title
+                }
+              }
             }
             lineItems(first: 100) {
               edges {
@@ -323,6 +349,31 @@ def get_orders(
             total_items = sum(
                 (line.get("node") or {}).get("quantity", 0) for line in line_edges
             )
+
+            # Extract fulfillment data
+            fulfillments_edges = (node.get("fulfillments") or {}).get("edges", [])
+            fulfilled_at = None
+            tracking_number = None
+            carrier = None
+            if fulfillments_edges:
+                first_fulfillment = fulfillments_edges[0].get("node", {})
+                fulfilled_at = first_fulfillment.get("createdAt")
+                tracking_edges = (first_fulfillment.get("trackingInfo") or {}).get(
+                    "edges", []
+                )
+                if tracking_edges:
+                    first_tracking = tracking_edges[0].get("node", {})
+                    tracking_number = first_tracking.get("number")
+                    carrier = first_tracking.get("company")
+
+            # Extract shipping address
+            shipping = node.get("shippingAddress") or {}
+
+            # Extract order timestamps
+            processed_at = node.get("processedAt")
+            cancelled_at = node.get("cancelledAt")
+            closed_at = node.get("closedAt")
+
             orders_rows.append(
                 {
                     "order_id": order_id,
@@ -334,6 +385,14 @@ def get_orders(
                     "customer_id": customer_id,
                     "language_id": None,
                     "referrer": "shopify",
+                    # Order flow fields
+                    "processed_at": processed_at,
+                    "fulfilled_at": fulfilled_at,
+                    "cancelled_at": cancelled_at,
+                    "closed_at": closed_at,
+                    "fulfillment_status": node.get("displayFulfillmentStatus"),
+                    "tracking_number": tracking_number,
+                    "carrier": carrier,
                 }
             )
 

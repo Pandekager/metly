@@ -649,8 +649,10 @@ def makeDummyData(conn: pymysql.Connection, user_id):
             insert_sql = """
                 INSERT INTO orders (id, user_id, totalItems, total, currency_symbol,
                                    createdAt, customer_id, language_id, referrer,
-                                   orderStatus, cancelledAt)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                   orderStatus, cancelledAt,
+                                   processed_at, fulfilled_at, cancelled_at, closed_at,
+                                   fulfillment_status, tracking_number, carrier)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
             params = [
                 (
@@ -665,6 +667,13 @@ def makeDummyData(conn: pymysql.Connection, user_id):
                     o["referrer"],
                     o.get("orderStatus", "completed"),
                     o.get("cancelledAt"),
+                    o.get("processed_at"),
+                    o.get("fulfilled_at"),
+                    o.get("cancelled_at"),
+                    o.get("closed_at"),
+                    o.get("fulfillment_status"),
+                    o.get("tracking_number"),
+                    o.get("carrier"),
                 )
                 for o in all_orders
             ]

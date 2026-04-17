@@ -286,12 +286,26 @@ def populateDB(db_usr, db_pwd, user_ids=None, raise_on_error: bool = False):
         skip_dandomain_modern = (
             os.getenv("SKIP_DANDOMAIN_MODERN", "false").lower() == "true"
         )
+        skip_dandomain_classic = (
+            os.getenv("SKIP_DANDOMAIN_CLASSIC", "false").lower() == "true"
+        )
         print(f"[DEBUG] SKIP_DANDOMAIN_MODERN = {skip_dandomain_modern}")
+        print(f"[DEBUG] SKIP_DANDOMAIN_CLASSIC = {skip_dandomain_classic}")
 
         for idx, row in df_users.iterrows():
             print(
                 f"[DEBUG] Processing user {idx}: {row.get('username')} ({row.get('platform_name')})"
             )
+
+            summary = {
+                "customers": 0,
+                "products": 0,
+                "orders": 0,
+                "order_lines": 0,
+                "languages": 0,
+                "product_categories": 0,
+            }
+
             if row.get("platform_name") == "Dandomain Modern":
                 if skip_dandomain_modern:
                     print(
@@ -439,6 +453,42 @@ def populateDB(db_usr, db_pwd, user_ids=None, raise_on_error: bool = False):
                                 if pd.isna(order_row.get("language_id"))
                                 else order_row.get("language_id")
                             ),
+                            # Order flow fields
+                            (
+                                None
+                                if pd.isna(order_row.get("processed_at"))
+                                else order_row.get("processed_at")
+                            ),
+                            (
+                                None
+                                if pd.isna(order_row.get("fulfilled_at"))
+                                else order_row.get("fulfilled_at")
+                            ),
+                            (
+                                None
+                                if pd.isna(order_row.get("cancelled_at"))
+                                else order_row.get("cancelled_at")
+                            ),
+                            (
+                                None
+                                if pd.isna(order_row.get("closed_at"))
+                                else order_row.get("closed_at")
+                            ),
+                            (
+                                None
+                                if pd.isna(order_row.get("fulfillment_status"))
+                                else order_row.get("fulfillment_status")
+                            ),
+                            (
+                                None
+                                if pd.isna(order_row.get("tracking_number"))
+                                else order_row.get("tracking_number")
+                            ),
+                            (
+                                None
+                                if pd.isna(order_row.get("carrier"))
+                                else order_row.get("carrier")
+                            ),
                         )
                         for _, order_row in df_orders.iterrows()
                     ]
@@ -446,8 +496,13 @@ def populateDB(db_usr, db_pwd, user_ids=None, raise_on_error: bool = False):
                     insert_sql = """
                         INSERT INTO orders (
                             id, user_id, totalItems, total, currency_symbol,
-                            createdAt, customer_id, language_id
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                            createdAt, customer_id, language_id,
+                            processed_at, fulfilled_at, cancelled_at, closed_at,
+                            fulfillment_status, tracking_number, carrier
+                        ) VALUES (
+                            %s, %s, %s, %s, %s, %s, %s, %s,
+                            %s, %s, %s, %s, %s, %s, %s
+                        )
                         """
 
                     chunk_size = 1000
@@ -602,6 +657,12 @@ def populateDB(db_usr, db_pwd, user_ids=None, raise_on_error: bool = False):
                     print("  No order lines to insert")
 
             elif row.get("platform_name") == "Dandomain Classic":
+                if skip_dandomain_classic:
+                    print(
+                        f"Skipping Dandomain Classic for {row.get('username')} (SKIP_DANDOMAIN_CLASSIC=true)"
+                    )
+                    continue
+
                 # row = df_users.iloc[0]
 
                 tenant = row.get("tenant")
@@ -617,14 +678,26 @@ def populateDB(db_usr, db_pwd, user_ids=None, raise_on_error: bool = False):
                 with conn.cursor() as cursor:
                     cursor.execute(stmt)
                     latest_order_date = cursor.fetchall()
-                    print(f"  Latest order date in DB: {latest_order_date[0][0]}")
+                    db_date = (
+                        latest_order_date[0][0]
+                        if latest_order_date and latest_order_date[0][0]
+                        else "9999-12-31 23:59:59"
+                    )
+                    print(f"  Latest order date in DB: {db_date}")
 
-                orders = ClassicGetOrders(
-                    api_key,
-                    tenant,
-                    max_pages=1200,
-                    latest_order_date=latest_order_date[0][0],
-                )
+                try:
+                    orders = ClassicGetOrders(
+                        api_key,
+                        tenant,
+                        max_pages=1200,
+                        latest_order_date=db_date,
+                    )
+                except Exception as e:
+                    print(f"  Warning: Failed to fetch Dandomain Classic orders: {e}")
+                    print(
+                        f"  Skipping Dandomain Classic for user {row.get('username')}"
+                    )
+                    continue
 
                 # Delete existing rows for this user in child->parent order to avoid FK constraint errors
                 order_line_ids = ",".join(
@@ -889,6 +962,14 @@ def populateDB(db_usr, db_pwd, user_ids=None, raise_on_error: bool = False):
                 makeDummyData(conn, row.get("id"))
 
             elif row.get("platform_name") == "Shopify":
+                summary = {
+                    "customers": 0,
+                    "products": 0,
+                    "orders": 0,
+                    "order_lines": 0,
+                    "languages": 0,
+                    "product_categories": 0,
+                }
                 tenant = row.get("tenant")
                 access_token = row.get("client_secret")
                 user_id = row.get("id")
@@ -1008,6 +1089,15 @@ def populateDB(db_usr, db_pwd, user_ids=None, raise_on_error: bool = False):
                     print(
                         f"  Warning: failed to delete existing Shopify rows for user id='{user_id}': {e}"
                     )
+
+                summary = {
+                    "customers": 0,
+                    "products": 0,
+                    "orders": 0,
+                    "order_lines": 0,
+                    "languages": 0,
+                    "product_categories": 0,
+                }
 
                 df_customers = orders.get("customers")
                 if df_customers is not None and not df_customers.empty:
