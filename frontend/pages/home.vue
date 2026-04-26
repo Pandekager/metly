@@ -195,6 +195,34 @@
                         >
                             <RefundReturnChart />
                         </div>
+
+                        <div
+                            v-else-if="activeTab === 'checkout'"
+                            class="space-y-6"
+                        >
+                            <CheckoutDropoffChart />
+                        </div>
+
+                        <div
+                            v-else-if="activeTab === 'bottlenecks'"
+                            class="space-y-6"
+                        >
+                            <OperationalBottlenecksChart />
+                        </div>
+
+                        <div
+                            v-else-if="activeTab === 'kundeadfaerd'"
+                            class="space-y-6"
+                        >
+                            <CustomerBehaviorChart />
+                        </div>
+
+                        <div
+                            v-else-if="activeTab === 'indsigt'"
+                            class="space-y-6"
+                        >
+                            <InsightsDashboard />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -215,6 +243,10 @@ import ProductTable from "~/components/tables/ProductTable.vue";
 import OrderFlowChart from "~/components/charts/OrderFlowChart.vue";
 import RevenueLeakChart from "~/components/charts/RevenueLeakChart.vue";
 import RefundReturnChart from "~/components/charts/RefundReturnChart.vue";
+import CheckoutDropoffChart from "~/components/charts/CheckoutDropoffChart.vue";
+import OperationalBottlenecksChart from "~/components/charts/OperationalBottlenecksChart.vue";
+import CustomerBehaviorChart from "~/components/charts/CustomerBehaviorChart.vue";
+import InsightsDashboard from "~/components/charts/InsightsDashboard.vue";
 
 interface CityAnalytics {
   city: string
@@ -261,6 +293,10 @@ const tabs = [
     { id: "produkter", label: "Produkter" },
     { id: "indtaegtslaekage", label: "Indtægtslækage" },
     { id: "returner", label: "Returner" },
+    { id: "checkout", label: "Checkout" },
+    { id: "bottlenecks", label: "Flaskehalse" },
+    { id: "kundeadfaerd", label: "Kundeadfærd" },
+    { id: "indsigt", label: "Indsigt" },
 ];
 
 const activeTab = ref("ordrer");

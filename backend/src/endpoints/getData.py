@@ -39,6 +39,22 @@ from .refund_return_analysis import (
     router as refund_return_router,
     _init_refund_return_globals,
 )
+from .checkout_dropoff_analysis import (
+    router as checkout_dropoff_router,
+    _init_checkout_dropoff_globals,
+)
+from .operational_bottlenecks import (
+    router as operational_bottlenecks_router,
+    _init_operational_bottlenecks_globals,
+)
+from .customer_behavior_analysis import (
+    router as customer_behavior_router,
+    _init_customer_behavior_globals,
+)
+from .insights_dashboard import (
+    router as insights_dashboard_router,
+    _init_insights_dashboard_globals,
+)
 
 app = FastAPI(title="Metly - Forecasts endpoint")
 
@@ -60,6 +76,26 @@ app.include_router(
     refund_return_router,
     prefix="/api",
     tags=["Refund & Return Analysis"],
+)
+app.include_router(
+    checkout_dropoff_router,
+    prefix="/api",
+    tags=["Checkout Drop-off Analysis"],
+)
+app.include_router(
+    operational_bottlenecks_router,
+    prefix="/api",
+    tags=["Operational Bottlenecks"],
+)
+app.include_router(
+    customer_behavior_router,
+    prefix="/api",
+    tags=["Customer Behavior"],
+)
+app.include_router(
+    insights_dashboard_router,
+    prefix="/api",
+    tags=["Insights Dashboard"],
 )
 
 # Globals populated at startup
@@ -126,6 +162,22 @@ def initialize_app():
         # Initialize refund return analysis globals
         _init_refund_return_globals(conn, JWT_SECRET, JWT_ALGORITHM)
         logger.info("Initialized refund return analysis module")
+
+        # Initialize checkout dropoff analysis globals
+        _init_checkout_dropoff_globals(conn, JWT_SECRET, JWT_ALGORITHM)
+        logger.info("Initialized checkout dropoff analysis module")
+
+        # Initialize operational bottlenecks analysis globals
+        _init_operational_bottlenecks_globals(conn, JWT_SECRET, JWT_ALGORITHM)
+        logger.info("Initialized operational bottlenecks analysis module")
+
+        # Initialize customer behavior analysis globals
+        _init_customer_behavior_globals(conn, JWT_SECRET, JWT_ALGORITHM)
+        logger.info("Initialized customer behavior analysis module")
+
+        # Initialize insights dashboard globals
+        _init_insights_dashboard_globals(conn, JWT_SECRET, JWT_ALGORITHM)
+        logger.info("Initialized insights dashboard module")
     except Exception as e:
         logger.error(f"Failed to connect to DB: {e}", exc_info=True)
         raise RuntimeError(f"Failed to connect to DB: {e}")
