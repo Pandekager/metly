@@ -405,15 +405,20 @@ def get_order_flow_analysis(
         raise HTTPException(status_code=500, detail="Failed to fetch orders")
 
     # Apply date filters if provided
+    # Convert createdAt column to datetime before filtering (comparing strings to datetime doesn't work)
+    if start_date or end_date:
+        created_col = _get_column(orders_df, "createdAt", "created_at")
+        orders_df[created_col.name] = pd.to_datetime(created_col, errors="coerce")
+
     if start_date:
         start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
         created_col = _get_column(orders_df, "createdAt", "created_at")
-        orders_df = orders_df[created_col >= start_dt]
+        orders_df = orders_df[orders_df[created_col.name] >= start_dt]
 
     if end_date:
         end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
         created_col = _get_column(orders_df, "createdAt", "created_at")
-        orders_df = orders_df[created_col <= end_dt]
+        orders_df = orders_df[orders_df[created_col.name] <= end_dt]
 
     order_count = len(orders_df)
     logger.info(f"Found {order_count} orders for analysis")
