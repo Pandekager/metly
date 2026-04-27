@@ -190,7 +190,7 @@ def _generate_recommendations(
                     priority=priority_counter,
                     category="revenue",
                     title="Reduce failed payment rate",
-                    description=f"Payment failures account for {leak.percentage:.1f}% of orders (€{leak.revenue:.2f} lost). Consider alternative payment providers or retry logic.",
+                    description=f"Payment failures account for {leak.percentage:.1f}% of orders (kr{leak.revenue:.2f} lost). Consider alternative payment providers or retry logic.",
                     potential_impact="high",
                     metric_focus=f"{leak.percentage:.1f}% recovery"
                 ))
@@ -200,7 +200,7 @@ def _generate_recommendations(
                     priority=priority_counter,
                     category="revenue",
                     title="Reduce order cancellation rate",
-                    description=f"Cancellations represent {leak.percentage:.1f}% of orders (€{leak.revenue:.2f} lost). Review cart abandonment triggers and offer incentives.",
+                    description=f"Cancellations represent {leak.percentage:.1f}% of orders (kr{leak.revenue:.2f} lost). Review cart abandonment triggers and offer incentives.",
                     potential_impact="high",
                     metric_focus=f"{leak.percentage:.1f}% recovery"
                 ))
@@ -210,7 +210,7 @@ def _generate_recommendations(
                     priority=priority_counter,
                     category="revenue",
                     title="Reduce refund rate",
-                    description=f"Refunds account for {leak.percentage:.1f}% of orders (€{leak.revenue:.2f} lost). Improve product descriptions and expection management.",
+                    description=f"Refunds account for {leak.percentage:.1f}% of orders (kr{leak.revenue:.2f} lost). Improve product descriptions and expection management.",
                     potential_impact="high",
                     metric_focus=f"{leak.percentage:.1f}% recovery"
                 ))
@@ -255,14 +255,14 @@ def _generate_recommendations(
         priority_counter += 1
 
     if retention.avg_customer_lifetime_value < 200:
-        recommendations.append(Recommendation(
-            priority=priority_counter,
-            category="retention",
-            title="Increase customer lifetime value",
-            description=f"Average LTV is €{retention.avg_customer_lifetime_value:.2f}. Focus on cross-selling, upselling, and repeat purchase incentives.",
-            potential_impact="medium",
-            metric_focus="+€50 LTV target"
-        ))
+recommendations.append(Recommendation(
+                priority=priority_counter,
+                category="retention",
+                title="Increase customer lifetime value",
+                description=f"Average LTV is kr{retention.avg_customer_lifetime_value:.2f}. Focus on cross-selling, upselling, and repeat purchase incentives.",
+                potential_impact="medium",
+                metric_focus="+kr50 LTV target"
+            ))
         priority_counter += 1
 
     # If no critical issues found, add general positive feedback
@@ -313,11 +313,11 @@ def get_insights_dashboard(user_id: UUID = Depends(_require_auth())):
                     total,
                     orderStatus,
                     createdAt,
-                    processedAt,
-                    fulfilledAt,
+                    processed_at,
+                    fulfilled_at,
                     carrier,
                     fulfillment_status,
-                    cancelledAt,
+                    cancelled_at,
                     closed_at as refundedAt
                 FROM metlydk_main.orders
                 WHERE user_id = :user_id
@@ -417,8 +417,8 @@ def get_insights_dashboard(user_id: UUID = Depends(_require_auth())):
 
             # === BOTTLENECK ANALYSIS ===
             created_times = pd.to_datetime(df["createdAt"], errors="coerce")
-            processed_times = pd.to_datetime(df["processedAt"], errors="coerce")
-            fulfilled_times = pd.to_datetime(df["fulfilledAt"], errors="coerce")
+            processed_times = pd.to_datetime(df["processed_at"], errors="coerce")
+            fulfilled_times = pd.to_datetime(df["fulfilled_at"], errors="coerce")
 
             processing_mask = created_times.notna() & processed_times.notna()
             fulfillment_mask = processed_times.notna() & fulfilled_times.notna()

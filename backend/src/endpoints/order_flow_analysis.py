@@ -151,9 +151,7 @@ def _calculate_durations(orders_df: pd.DataFrame) -> dict:
     # Parse timestamps
     created_at = orders_df["createdAt"].apply(_parse_iso_timestamp)
     processed_at = orders_df["processed_at"].apply(_parse_iso_timestamp)
-    fulfillment_created_at = orders_df["fulfillment_created_at"].apply(
-        _parse_iso_timestamp
-    )
+    fulfilled_at = orders_df["fulfilled_at"].apply(_parse_iso_timestamp)
     closed_at = orders_df["closed_at"].apply(_parse_iso_timestamp)
 
     # Calculate durations in hours
@@ -164,7 +162,7 @@ def _calculate_durations(orders_df: pd.DataFrame) -> dict:
     for i in range(len(orders_df)):
         created = created_at.iloc[i]
         processed = processed_at.iloc[i]
-        fulfilled = fulfillment_created_at.iloc[i]
+        fulfilled = fulfilled_at.iloc[i]
         closed = closed_at.iloc[i]
 
         # Created → Processed (in hours)
@@ -226,10 +224,8 @@ def _calculate_bottlenecks(orders_df: pd.DataFrame) -> dict:
 
     # Parse timestamps
     created_at = orders_df["createdAt"].apply(_parse_iso_timestamp)
-    processed_at = orders_df["processed_at"].apply(_parse_iso_timestamp)
-    fulfillment_created_at = orders_df["fulfillment_created_at"].apply(
-        _parse_iso_timestamp
-    )
+    processed_at = orders_df["processedAt"].apply(_parse_iso_timestamp)
+    fulfilled_at = orders_df["fulfilledAt"].apply(_parse_iso_timestamp)
 
     exceeds_24h_count = 0
     exceeds_48h_count = 0
@@ -237,7 +233,7 @@ def _calculate_bottlenecks(orders_df: pd.DataFrame) -> dict:
     for i in range(len(orders_df)):
         created = created_at.iloc[i]
         processed = processed_at.iloc[i]
-        fulfilled = fulfillment_created_at.iloc[i]
+        fulfilled = fulfilled_at.iloc[i]
 
         # Check created→processed > 24h
         if created and processed:
@@ -276,9 +272,7 @@ def _get_top_carriers(orders_df: pd.DataFrame, top_n: int = 5) -> list:
         return []
 
     carrier_counts = (
-        orders_df[orders_df["tracking_company"].notna()]["tracking_company"]
-        .value_counts()
-        .head(top_n)
+        orders_df[orders_df["carrier"].notna()]["carrier"].value_counts().head(top_n)
     )
 
     return [
@@ -317,24 +311,18 @@ def _fetch_orders_with_fulfillment(user_id: UUID) -> pd.DataFrame:
         """
         SELECT
             o.id,
-            o.created,
+            o.createdAt,
             o.processed_at,
+            o.fulfilled_at,
             o.cancelled_at,
             o.closed_at,
             o.fulfillment_status,
-            o.fulfillment_created_at,
-            o.tracking_company,
             o.tracking_number,
-            o.shipping_first_name,
-            o.shipping_last_name,
-            o.shipping_address1,
-            o.shipping_city,
-            o.shipping_zip,
-            o.shipping_country
+            o.carrier,
+            o.shipping_address
         FROM orders o
         WHERE o.user_id = :user_id
-        ORDER BY o.created DESC
-        LIMIT 1000
+        ORDER BY o.createdAt DESC
         """
     )
 
@@ -405,16 +393,18 @@ def get_order_flow_analysis(
     # Apply date filters if provided
     if start_date:
         start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
-        orders_df = orders_df[orders_df["created"] >= start_dt]
+        orders_df = orders_df[orders_df["createdAt"] >= start_dt]
 
     if end_date:
         end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
-        orders_df = orders_df[orders_df["created"] <= end_dt]
+        orders_df = orders_df[orders_df["createdAt"] <= end_dt]
 
     order_count = len(orders_df)
     logger.info(f"Found {order_count} orders for analysis")
 
     # Calculate metrics
+    logger.info(f"DataFrame columns: {orders_df.columns.tolist()}")
+    logger.info(f"DataFrame dtypes:\n{orders_df.dtypes}")
     try:
         stage_durations = _calculate_durations(orders_df)
         bottlenecks = _calculate_bottlenecks(orders_df)
@@ -423,6 +413,9 @@ def get_order_flow_analysis(
         stage_chart_data = _get_stage_chart_data(stage_durations)
     except Exception as e:
         logger.error(f"Failed to calculate metrics: {e}")
+        import traceback
+
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="Failed to calculate analysis")
 
     return OrderFlowAnalysisResponse(

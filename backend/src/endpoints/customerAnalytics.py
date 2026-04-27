@@ -86,7 +86,7 @@ def get_customer_analytics(current_user: UUID = Depends(get_current_user)):
                 COUNT(DISTINCT c.id) AS customer_count,
                 COALESCE(SUM(o.total), 0) AS revenue
             FROM customers c
-            LEFT JOIN orders o ON c.id = o.customer_id
+            LEFT JOIN orders o ON c.id = o.customer_id AND o.orderStatus = 'completed'
             WHERE c.user_id = :user_id
                 AND c.billing_city IS NOT NULL 
                 AND c.billing_city != ''
