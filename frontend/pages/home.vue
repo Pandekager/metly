@@ -60,7 +60,32 @@
                     </div>
 
                     <div class="p-6">
-                        <div class="flex flex-wrap gap-2 mb-8">
+                        <div class="flex items-center gap-4 mb-6">
+                            <div class="flex items-center gap-2 text-sm">
+                                <label class="text-slate-600 dark:text-slate-400">Fra:</label>
+                                <input
+                                    type="date"
+                                    v-model="dateRange.start"
+                                    class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+                                />
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <label class="text-slate-600 dark:text-slate-400">Til:</label>
+                                <input
+                                    type="date"
+                                    v-model="dateRange.end"
+                                    class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+                                />
+                            </div>
+                            <button
+                                @click="dateRange = { start: format(startOfMonth(new Date()), 'yyyy-MM-dd'), end: format(endOfMonth(new Date()), 'yyyy-MM-dd') }"
+                                class="text-xs text-metly-600 hover:text-metly-700"
+                            >
+                                Nulstil
+                            </button>
+                        </div>
+
+                        <div class="flex flex-wrap gap-2 mb-6 items-center">
                             <button
                                 v-for="tab in tabs"
                                 :key="tab.id"
@@ -74,6 +99,16 @@
                             >
                                 {{ tab.label }}
                             </button>
+                        </div>
+
+                        <!-- Single info tooltip for active tab context -->
+                        <div v-if="activeTabInfo" class="mb-6 flex items-start gap-2">
+                            <InfoTooltip
+                                :title="activeTabInfo.title"
+                                :description="activeTabInfo.description"
+                                :interpretation="activeTabInfo.interpretation"
+                                :action="activeTabInfo.action"
+                            />
                         </div>
 
                         <div
@@ -128,7 +163,7 @@
                             v-else-if="activeTab === 'ordre-flow'"
                             class="space-y-6"
                         >
-                            <OrderFlowChart />
+                            <OrderFlowChart :date-range="dateRange" />
                         </div>
 
                         <div
@@ -186,42 +221,42 @@
                             v-else-if="activeTab === 'indtaegtslaekage'"
                             class="space-y-6"
                         >
-                            <RevenueLeakChart />
+                            <RevenueLeakChart :date-range="dateRange" />
                         </div>
 
                         <div
                             v-else-if="activeTab === 'returner'"
                             class="space-y-6"
                         >
-                            <RefundReturnChart />
+                            <RefundReturnChart :date-range="dateRange" />
                         </div>
 
                         <div
                             v-else-if="activeTab === 'checkout'"
                             class="space-y-6"
                         >
-                            <CheckoutDropoffChart />
+                            <CheckoutDropoffChart :date-range="dateRange" />
                         </div>
 
                         <div
                             v-else-if="activeTab === 'bottlenecks'"
                             class="space-y-6"
                         >
-                            <OperationalBottlenecksChart />
+                            <OperationalBottlenecksChart :date-range="dateRange" />
                         </div>
 
                         <div
                             v-else-if="activeTab === 'kundeadfaerd'"
                             class="space-y-6"
                         >
-                            <CustomerBehaviorChart />
+                            <CustomerBehaviorChart :date-range="dateRange" />
                         </div>
 
                         <div
                             v-else-if="activeTab === 'indsigt'"
                             class="space-y-6"
                         >
-                            <InsightsDashboard />
+                            <InsightsDashboard :date-range="dateRange" />
                         </div>
                     </div>
                 </div>
@@ -247,6 +282,8 @@ import CheckoutDropoffChart from "~/components/charts/CheckoutDropoffChart.vue";
 import OperationalBottlenecksChart from "~/components/charts/OperationalBottlenecksChart.vue";
 import CustomerBehaviorChart from "~/components/charts/CustomerBehaviorChart.vue";
 import InsightsDashboard from "~/components/charts/InsightsDashboard.vue";
+import InfoTooltip from "~/components/InfoTooltip.vue";
+import { startOfMonth, endOfMonth, format } from "date-fns";
 
 interface CityAnalytics {
   city: string
@@ -299,7 +336,79 @@ const tabs = [
     { id: "indsigt", label: "Indsigt" },
 ];
 
+const tabTooltips = {
+    ordrer: {
+        title: "Ordrer",
+        description: "Salgsprognoser for de næste 30 dage baseret på historiske data.",
+        interpretation: "Den blå linje viser forventet omsætning. Det skraverede område viser usikkerhedsmarginen.",
+        action: "Brug til at planlægge lagerbeholdning og personaleplanlægning."
+    },
+    "ordre-flow": {
+        title: "Ordre flow",
+        description: "Ordrer fra placering til levering: placeret → behandlet → opfyldt → leveret.",
+        interpretation: "Tjek hvor mange ordrer der sidder fast i hver fase. Lange ventetider i en fase indikerer flaskehalse.",
+        action: "Identificer forsinkelser og forbedr din leveringsproces."
+    },
+    kunder: {
+        title: "Kunder",
+        description: "Geografisk fordeling af dine kunder på tværs af Danmark.",
+        interpretation: "Mørkere områder har flere kunder. Brug til at prioritere marketing og levering.",
+        action: "Fokusér lokalisér marketing i områder med få kunder."
+    },
+    produkter: {
+        title: "Produkter",
+        description: "Dine bedst sælgende produkter og salgstrends over tid.",
+        interpretation: "Stigende trends = populære varer. Faldende = overveje udskiftning.",
+        action: "Bestil lagerbeholdning baseret på top performers."
+    },
+    indtaegtslaekage: {
+        title: "Indtægtslækage",
+        description: "Tabt omsætning: fejlende betalinger, annullerede og refunderede ordrer.",
+        interpretation: "Høj lækage = problem i checkout eller produkter. Tjek årsagen for at reducere tab.",
+        action: "Forbedr checkout flow eller produkter baseret på årsag til tab."
+    },
+    returner: {
+        title: "Returner",
+        description: "Returneringsrater og årsager til returneringer.",
+        interpretation: "Høje returneringsrater for specifikke produkter indikerer varebeskrivelsesproblemer.",
+        action: "Forbedr produktbeskrivelser for items med høj returrate."
+    },
+    checkout: {
+        title: "Checkout",
+        description: "Funnel fra webshop-sessioner til betaling: sessions → checkout → betaling.",
+        interpretation: "Største drop-off viser hvor brugere forlader. Forenkling dér giver flere salg.",
+        action: "Forenkler checkout trin med størst drop-off."
+    },
+    bottlenecks: {
+        title: "Flaskehalse",
+        description: "Forsinkelser i ordre-opfyldningsprocessen.",
+        interpretation: "Høje tal i en fase = processen er for langsom der.",
+        action: "Optimer processer med længst ventetid."
+    },
+    kundeadfaerd: {
+        title: "Kundeadfærd",
+        description: "Kundeemission over tid: nye vs tilbagevendende kunder.",
+        interpretation: "Flere tilbagevendende = god loyalitet. Faldende = kundechurn.",
+        action: "Invester i loyalty-programmer hvis tilbagevendende falder."
+    },
+    indsigt: {
+        title: "Indsigt",
+        description: "Opsummering af alle nøgletal: omsætning, marginer, mv.",
+        interpretation: "Quick overview af forretningens sundhed. Sammenlign med tidligere perioder.",
+        action: "Brug til at tracke overordnede business goals."
+    }
+};
+
 const activeTab = ref("ordrer");
+
+const activeTabInfo = computed(() => {
+  return tabTooltips[activeTab.value] || null;
+});
+
+const dateRange = ref<{ start: string; end: string }>({
+  start: format(startOfMonth(new Date()), "yyyy-MM-dd"),
+  end: format(endOfMonth(new Date()), "yyyy-MM-dd")
+});
 const loading = ref(false);
 const forecasts = ref<Forecast[] | null>(null);
 const advice = ref<ForecastBusinessAdvice[] | null>(null);
@@ -395,7 +504,14 @@ const fetchAnalytics = async () => {
   console.log("fetchAnalytics called");
   try {
     console.log("Fetching /api/customer_analytics...");
-    const result = await $fetch<{data: CityAnalytics[]} | CityAnalytics[]>("/api/customer_analytics");
+    const params = new URLSearchParams();
+    if (dateRange.value) {
+      params.set('start_date', dateRange.value.start);
+      params.set('end_date', dateRange.value.end);
+    }
+    const query = params.toString();
+    const url = query ? `/api/customer_analytics?${query}` : '/api/customer_analytics';
+    const result = await $fetch<{data: CityAnalytics[]} | CityAnalytics[]>(url);
     analyticsData.value = (result as any).data || result;
     console.log("Analytics fetched:", JSON.stringify(analyticsData.value));
   } catch (error: any) {
@@ -462,6 +578,17 @@ watch(activeTab, (newTab) => {
     }
   }
 });
+
+// Watch for date range changes to refresh analytics
+watch(dateRange, async () => {
+  if (activeTab.value === 'kunder') {
+    await fetchAnalytics();
+  }
+  if (activeTab.value === 'produkter') {
+    await fetchProductAnalytics();
+    await fetchProductAdvice();
+  }
+}, { deep: true });
 
 onBeforeUnmount(() => {
   if (onboardingInterval) {
