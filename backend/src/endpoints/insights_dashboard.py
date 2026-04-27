@@ -255,14 +255,14 @@ def _generate_recommendations(
         priority_counter += 1
 
     if retention.avg_customer_lifetime_value < 200:
-recommendations.append(Recommendation(
-                priority=priority_counter,
-                category="retention",
-                title="Increase customer lifetime value",
-                description=f"Average LTV is kr{retention.avg_customer_lifetime_value:.2f}. Focus on cross-selling, upselling, and repeat purchase incentives.",
-                potential_impact="medium",
-                metric_focus="+kr50 LTV target"
-            ))
+        recommendations.append(Recommendation(
+            priority=priority_counter,
+            category="retention",
+            title="Increase customer lifetime value",
+            description=f"Average LTV is kr{retention.avg_customer_lifetime_value:.2f}. Focus on cross-selling, upselling, and repeat purchase incentives.",
+            potential_impact="medium",
+            metric_focus="+kr50 LTV target"
+        ))
         priority_counter += 1
 
     # If no critical issues found, add general positive feedback
