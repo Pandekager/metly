@@ -590,14 +590,23 @@ watch(activeTab, (newTab) => {
   }
 });
 
-// Watch for date range changes to refresh analytics
-watch([startDate, endDate], async () => {
+// Watch for date range changes to refresh all tab data
+watch([startDate, endDate], async (newDates, oldDates) => {
+  console.log('[home.vue] Date range changed:', { start: newDates[0], end: newDates[1] });
+  console.log('[home.vue] Active tab:', activeTab.value);
+  
+  // For tabs with chart components, the chart components handle their own data fetching
+  // via their internal watchers. We only need to fetch data for tabs that are managed
+  // directly in home.vue (kunder and produkter).
   if (activeTab.value === 'kunder') {
     await fetchAnalytics();
   }
   if (activeTab.value === 'produkter') {
     await fetchProductAnalytics();
     await fetchProductAdvice();
+  }
+  if (activeTab.value === 'ordrer') {
+    await Promise.all([fetchForecasts(), fetchAdvice()]);
   }
 });
 
