@@ -117,6 +117,20 @@ def _parse_iso_timestamp(value: Optional[str]) -> Optional[datetime]:
         return None
 
 
+def _get_column(df: pd.DataFrame, *names: str) -> pd.Series:
+    """Get a column by trying multiple possible names (camelCase or snake_case)."""
+    for name in names:
+        if name in df.columns:
+            return df[name]
+    # Fallback: try case-insensitive match
+    for name in names:
+        lower_name = name.lower()
+        for col in df.columns:
+            if col.lower() == lower_name:
+                return df[col]
+    raise KeyError(f"None of the columns found: {names}. Available: {df.columns.tolist()}")
+
+
 def _calculate_percentile(series: pd.Series, percentile: float) -> float:
     """Calculate percentile from a series, ignoring NaN values."""
     if series.empty or series.isna().all():
@@ -148,11 +162,11 @@ def _calculate_durations(orders_df: pd.DataFrame) -> dict:
             },
         }
 
-    # Parse timestamps
-    created_at = orders_df["createdAt"].apply(_parse_iso_timestamp)
-    processed_at = orders_df["processed_at"].apply(_parse_iso_timestamp)
-    fulfilled_at = orders_df["fulfilled_at"].apply(_parse_iso_timestamp)
-    closed_at = orders_df["closed_at"].apply(_parse_iso_timestamp)
+    # Parse timestamps - handle both camelCase and snake_case column names
+    created_at = _get_column(orders_df, "createdAt", "created_at").apply(_parse_iso_timestamp)
+    processed_at = _get_column(orders_df, "processedAt", "processed_at").apply(_parse_iso_timestamp)
+    fulfilled_at = _get_column(orders_df, "fulfilledAt", "fulfilled_at").apply(_parse_iso_timestamp)
+    closed_at = _get_column(orders_df, "closedAt", "closed_at").apply(_parse_iso_timestamp)
 
     # Calculate durations in hours
     created_to_processed = []
@@ -222,10 +236,10 @@ def _calculate_bottlenecks(orders_df: pd.DataFrame) -> dict:
             "processed_to_fulfilled_exceeds_48h_pct": 0.0,
         }
 
-    # Parse timestamps
-    created_at = orders_df["createdAt"].apply(_parse_iso_timestamp)
-    processed_at = orders_df["processedAt"].apply(_parse_iso_timestamp)
-    fulfilled_at = orders_df["fulfilledAt"].apply(_parse_iso_timestamp)
+    # Parse timestamps - handle both camelCase and snake_case column names
+    created_at = _get_column(orders_df, "createdAt", "created_at").apply(_parse_iso_timestamp)
+    processed_at = _get_column(orders_df, "processedAt", "processed_at").apply(_parse_iso_timestamp)
+    fulfilled_at = _get_column(orders_df, "fulfilledAt", "fulfilled_at").apply(_parse_iso_timestamp)
 
     exceeds_24h_count = 0
     exceeds_48h_count = 0
@@ -393,11 +407,13 @@ def get_order_flow_analysis(
     # Apply date filters if provided
     if start_date:
         start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
-        orders_df = orders_df[orders_df["createdAt"] >= start_dt]
+        created_col = _get_column(orders_df, "createdAt", "created_at")
+        orders_df = orders_df[created_col >= start_dt]
 
     if end_date:
         end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
-        orders_df = orders_df[orders_df["createdAt"] <= end_dt]
+        created_col = _get_column(orders_df, "createdAt", "created_at")
+        orders_df = orders_df[created_col <= end_dt]
 
     order_count = len(orders_df)
     logger.info(f"Found {order_count} orders for analysis")

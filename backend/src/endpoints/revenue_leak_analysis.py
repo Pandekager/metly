@@ -54,6 +54,20 @@ def _init_revenue_leak_globals(db_conn, jwt_secret, jwt_algo):
     logger.info("Initialized revenue leak analysis module")
 
 
+def _get_column(df: pd.DataFrame, *names: str) -> pd.Series:
+    """Get a column by trying multiple possible names (camelCase or snake_case)."""
+    for name in names:
+        if name in df.columns:
+            return df[name]
+    # Fallback: try case-insensitive match
+    for name in names:
+        lower_name = name.lower()
+        for col in df.columns:
+            if col.lower() == lower_name:
+                return df[col]
+    raise KeyError(f"None of the columns found: {names}. Available: {df.columns.tolist()}")
+
+
 def _require_auth():
     """Validate JWT token and return user_id."""
     jose, JWTError = _require_jose()
@@ -220,8 +234,13 @@ def get_revenue_leak_analysis(user_id: UUID = Depends(_require_auth())):
                 ]
             ]
 
-            if "createdAt" in df.columns:
-                df["month"] = pd.to_datetime(df["createdAt"]).dt.to_period("M")
+            created_col = None
+            for name in ("createdAt", "created_at"):
+                if name in df.columns:
+                    created_col = name
+                    break
+            if created_col:
+                df["month"] = pd.to_datetime(df[created_col]).dt.to_period("M")
                 monthly_groups = (
                     df.groupby("month")
                     .agg(

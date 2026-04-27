@@ -55,6 +55,20 @@ def _init_insights_dashboard_globals(db_conn, jwt_secret, jwt_algo):
     logger.info("Initialized insights dashboard module")
 
 
+def _get_column(df: pd.DataFrame, *names: str) -> pd.Series:
+    """Get a column by trying multiple possible names (camelCase or snake_case)."""
+    for name in names:
+        if name in df.columns:
+            return df[name]
+    # Fallback: try case-insensitive match
+    for name in names:
+        lower_name = name.lower()
+        for col in df.columns:
+            if col.lower() == lower_name:
+                return df[col]
+    raise KeyError(f"None of the columns found: {names}. Available: {df.columns.tolist()}")
+
+
 def _require_auth():
     """Validate JWT token and return user_id."""
     jose, JWTError = _require_jose()
@@ -416,9 +430,9 @@ def get_insights_dashboard(user_id: UUID = Depends(_require_auth())):
             top_revenue_leaks.sort(key=lambda x: x.revenue, reverse=True)
 
             # === BOTTLENECK ANALYSIS ===
-            created_times = pd.to_datetime(df["createdAt"], errors="coerce")
-            processed_times = pd.to_datetime(df["processed_at"], errors="coerce")
-            fulfilled_times = pd.to_datetime(df["fulfilled_at"], errors="coerce")
+            created_times = pd.to_datetime(_get_column(df, "createdAt", "created_at"), errors="coerce")
+            processed_times = pd.to_datetime(_get_column(df, "processedAt", "processed_at"), errors="coerce")
+            fulfilled_times = pd.to_datetime(_get_column(df, "fulfilledAt", "fulfilled_at"), errors="coerce")
 
             processing_mask = created_times.notna() & processed_times.notna()
             fulfillment_mask = processed_times.notna() & fulfilled_times.notna()

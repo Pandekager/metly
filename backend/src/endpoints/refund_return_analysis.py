@@ -22,6 +22,8 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from uuid import UUID
 
+from ..integrations.demo.demo import RETURN_REASONS_TUPLE
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -54,6 +56,20 @@ def _init_refund_return_globals(db_conn, jwt_secret, jwt_algo):
     JWT_SECRET = jwt_secret
     JWT_ALGORITHM = jwt_algo
     logger.info("Initialized refund return analysis module")
+
+
+def _get_column(df: pd.DataFrame, *names: str) -> pd.Series:
+    """Get a column by trying multiple possible names (camelCase or snake_case)."""
+    for name in names:
+        if name in df.columns:
+            return df[name]
+    # Fallback: try case-insensitive match
+    for name in names:
+        lower_name = name.lower()
+        for col in df.columns:
+            if col.lower() == lower_name:
+                return df[col]
+    raise KeyError(f"None of the columns found: {names}. Available: {df.columns.tolist()}")
 
 
 def _require_auth():
@@ -105,19 +121,6 @@ class RefundReturnResponse(BaseModel):
     top_refunded_products: List[ProductRefundStats]
     return_reasons: List[ReturnReasonStats]
     refunds_by_month: List[MonthlyRefundStats]
-
-
-# Return reasons for simulation (Danish translations)
-RETURN_REASONS = [
-    ("Forkert størrelse", 0.30),  # Wrong size - 30%
-    (
-        "Produktet levede ikke op til forventninger",
-        0.25,
-    ),  # Did not meet expectations - 25%
-    ("Anden grund", 0.20),  # Other - 20%
-    ("Defekt produkt", 0.15),  # Defective product - 15%
-    ("Ankom beskadiget", 0.10),  # Arrived damaged - 10%
-]
 
 
 @router.get("/refund_return_analysis", response_model=RefundReturnResponse)
@@ -203,13 +206,20 @@ def get_refund_return_analysis(user_id: UUID = Depends(_require_auth())):
             )
 
             # Calculate average days to refund
-            if (
-                "createdAt" in refunded_df.columns
-                and "refundedAt" in refunded_df.columns
-            ):
+            created_col = None
+            refunded_col = None
+            for name in ("createdAt", "created_at"):
+                if name in refunded_df.columns:
+                    created_col = name
+                    break
+            for name in ("refundedAt", "refunded_at", "closedAt", "closed_at"):
+                if name in refunded_df.columns:
+                    refunded_col = name
+                    break
+            if created_col and refunded_col:
                 try:
-                    created_dates = pd.to_datetime(refunded_df["createdAt"])
-                    refunded_dates = pd.to_datetime(refunded_df["refundedAt"])
+                    created_dates = pd.to_datetime(refunded_df[created_col])
+                    refunded_dates = pd.to_datetime(refunded_df[refunded_col])
                     days_diff = (refunded_dates - created_dates).dt.days
                     avg_days_to_refund = (
                         float(days_diff.mean()) if len(days_diff) > 0 else 0.0
@@ -290,7 +300,7 @@ def get_refund_return_analysis(user_id: UUID = Depends(_require_auth())):
 
             # Return reasons breakdown (simulated distribution)
             reasons = []
-            for reason_name, percentage in RETURN_REASONS:
+            for reason_name, percentage in RETURN_REASONS_TUPLE:
                 count = int(total_refunds * percentage)
                 reasons.append(
                     {
@@ -310,10 +320,15 @@ def get_refund_return_analysis(user_id: UUID = Depends(_require_auth())):
             ]
 
             # Monthly refund trends
-            if "createdAt" in refunded_df.columns:
+            created_col = None
+            for name in ("createdAt", "created_at"):
+                if name in refunded_df.columns:
+                    created_col = name
+                    break
+            if created_col:
                 try:
                     refunded_df["month"] = pd.to_datetime(
-                        refunded_df["createdAt"]
+                        refunded_df[created_col]
                     ).dt.to_period("M")
 
                     monthly_groups = (

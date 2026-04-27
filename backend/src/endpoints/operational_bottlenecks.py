@@ -57,6 +57,20 @@ def _init_operational_bottlenecks_globals(db_conn, jwt_secret, jwt_algo):
     logger.info("Initialized operational bottlenecks analysis module")
 
 
+def _get_column(df: pd.DataFrame, *names: str) -> pd.Series:
+    """Get a column by trying multiple possible names (camelCase or snake_case)."""
+    for name in names:
+        if name in df.columns:
+            return df[name]
+    # Fallback: try case-insensitive match
+    for name in names:
+        lower_name = name.lower()
+        for col in df.columns:
+            if col.lower() == lower_name:
+                return df[col]
+    raise KeyError(f"None of the columns found: {names}. Available: {df.columns.tolist()}")
+
+
 def _require_auth():
     """Validate JWT token and return user_id."""
     jose, JWTError = _require_jose()
@@ -166,9 +180,9 @@ def get_operational_bottlenecks(user_id: UUID = Depends(_require_auth())):
             df["orderStatus"] = df["orderStatus"].fillna("unknown")
             df["fulfillment_status"] = df["fulfillment_status"].fillna("unknown")
 
-            created_times = pd.to_datetime(df["createdAt"], errors="coerce")
-            processed_times = pd.to_datetime(df["processed_at"], errors="coerce")
-            fulfilled_times = pd.to_datetime(df["fulfilled_at"], errors="coerce")
+            created_times = pd.to_datetime(_get_column(df, "createdAt", "created_at"), errors="coerce")
+            processed_times = pd.to_datetime(_get_column(df, "processedAt", "processed_at"), errors="coerce")
+            fulfilled_times = pd.to_datetime(_get_column(df, "fulfilledAt", "fulfilled_at"), errors="coerce")
 
             processing_mask = created_times.notna() & processed_times.notna()
             processing_hours = (
@@ -261,8 +275,13 @@ def get_operational_bottlenecks(user_id: UUID = Depends(_require_auth())):
                     )
 
             monthly_trends = []
-            if "createdAt" in df.columns:
-                df["month"] = pd.to_datetime(df["createdAt"]).dt.to_period("M")
+            created_col = None
+            for name in ("createdAt", "created_at"):
+                if name in df.columns:
+                    created_col = name
+                    break
+            if created_col:
+                df["month"] = pd.to_datetime(df[created_col]).dt.to_period("M")
                 monthly_groups = (
                     df.groupby("month")
                     .agg(
@@ -272,7 +291,7 @@ def get_operational_bottlenecks(user_id: UUID = Depends(_require_auth())):
                                 (
                                     pd.to_datetime(x, errors="coerce")
                                     - pd.to_datetime(
-                                        df.loc[x.index, "createdAt"], errors="coerce"
+                                        df.loc[x.index, created_col], errors="coerce"
                                     )
                                 )
                                 .dt.total_seconds()
