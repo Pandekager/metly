@@ -65,7 +65,7 @@
                                 <label class="text-slate-600 dark:text-slate-400">Fra:</label>
                                 <input
                                     type="date"
-                                    v-model="dateRange.start"
+                                    v-model="startDate"
                                     class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300"
                                 />
                             </div>
@@ -73,12 +73,12 @@
                                 <label class="text-slate-600 dark:text-slate-400">Til:</label>
                                 <input
                                     type="date"
-                                    v-model="dateRange.end"
+                                    v-model="endDate"
                                     class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300"
                                 />
                             </div>
                             <button
-                                @click="dateRange = { start: format(startOfMonth(new Date()), 'yyyy-MM-dd'), end: format(endOfMonth(new Date()), 'yyyy-MM-dd') }"
+                                @click="resetDateRange"
                                 class="text-xs text-metly-600 hover:text-metly-700"
                             >
                                 Nulstil
@@ -405,9 +405,15 @@ const activeTabInfo = computed(() => {
   return tabTooltips[activeTab.value] || null;
 });
 
-const dateRange = ref<{ start: string; end: string }>({
-  start: format(startOfMonth(new Date()), "yyyy-MM-dd"),
-  end: format(endOfMonth(new Date()), "yyyy-MM-dd")
+const startDate = ref(format(startOfMonth(new Date()), "yyyy-MM-dd"));
+const endDate = ref(format(endOfMonth(new Date()), "yyyy-MM-dd"));
+
+const dateRange = computed({
+  get: () => ({ start: startDate.value, end: endDate.value }),
+  set: (val) => {
+    startDate.value = val.start;
+    endDate.value = val.end;
+  }
 });
 const loading = ref(false);
 const forecasts = ref<Forecast[] | null>(null);
@@ -539,6 +545,11 @@ const fetchProductAdvice = async () => {
   }
 };
 
+const resetDateRange = () => {
+  startDate.value = format(startOfMonth(new Date()), "yyyy-MM-dd");
+  endDate.value = format(endOfMonth(new Date()), "yyyy-MM-dd");
+};
+
 onMounted(() => {
   loading.value = true;
   fetchOnboardingStatus()
@@ -580,7 +591,7 @@ watch(activeTab, (newTab) => {
 });
 
 // Watch for date range changes to refresh analytics
-watch(dateRange, async () => {
+watch([startDate, endDate], async () => {
   if (activeTab.value === 'kunder') {
     await fetchAnalytics();
   }
@@ -588,7 +599,7 @@ watch(dateRange, async () => {
     await fetchProductAnalytics();
     await fetchProductAdvice();
   }
-}, { deep: true });
+});
 
 onBeforeUnmount(() => {
   if (onboardingInterval) {

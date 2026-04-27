@@ -1,9 +1,17 @@
 <template>
-    <div class="order-flow-chart-container">
+    <div class="revenue-leak-chart-container">
         <div class="summary-cards">
             <div class="summary-card p-4 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800">
                 <h3 class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    Samlet antal ordrer
+                    Samlet omsætning
+                </h3>
+                <p class="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                    {{ formatCurrency(totalRevenue) }}
+                </p>
+            </div>
+            <div class="summary-card p-4 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800">
+                <h3 class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">
+                    Samlet ordrer
                 </h3>
                 <p class="text-2xl font-bold text-slate-900 dark:text-slate-100">
                     {{ formatNumber(orderCount) }}
@@ -11,18 +19,10 @@
             </div>
             <div class="summary-card p-4 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800">
                 <h3 class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    Opfyldelsesrate
+                    Lækage
                 </h3>
-                <p class="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                    {{ fulfillmentRate.toFixed(1) }}%
-                </p>
-            </div>
-            <div class="summary-card p-4 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800">
-                <h3 class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">
-                    Top carrier
-                </h3>
-                <p class="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                    {{ topCarrier }}
+                <p class="text-2xl font-bold" :class="leakClass">
+                    {{ totalLeakPct.toFixed(1) }}%
                 </p>
             </div>
         </div>
@@ -44,33 +44,33 @@
 
         <div class="chart-wrapper">
             <Bar
-                v-if="stageData.length > 0"
+                v-if="leakByMonth.length > 0"
                 :key="isDark ? 'dark' : 'light'"
                 :data="chartData"
                 :options="chartOptions"
             />
             <div v-else class="empty-state">
                 <p class="empty-text text-slate-500 dark:text-slate-400">
-                    Ingen orderflow-data tilgængelig
+                    Ingen indtægtslækage-data tilgængelig
                 </p>
             </div>
         </div>
 
-        <div v-if="topCarriers.length > 0" class="carriers-section mt-6">
+        <div v-if="leakByStatus.length > 0" class="status-breakdown mt-6">
             <h4 class="text-lg font-semibold mb-3 text-slate-900 dark:text-slate-100">
-                Top carriers
+                Fordeling efter status
             </h4>
-            <div class="carrier-list flex flex-wrap gap-3">
+            <div class="status-list flex flex-wrap gap-3">
                 <div
-                    v-for="carrier in topCarriers"
-                    :key="carrier.carrier"
-                    class="carrier-item p-3 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800"
+                    v-for="item in leakByStatus"
+                    :key="item.status"
+                    class="status-item p-3 border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800"
                 >
-                    <p class="font-medium text-slate-900 dark:text-slate-100">
-                        {{ carrier.carrier }}
+                    <p class="font-medium text-slate-900 dark:text-slate-100 capitalize">
+                        {{ formatStatus(item.status) }}
                     </p>
                     <p class="text-sm text-slate-600 dark:text-slate-400">
-                        {{ formatNumber(carrier.count) }} ordrer
+                        {{ item.count }} ordrer · {{ formatCurrency(item.revenue) }}
                     </p>
                 </div>
             </div>
@@ -90,7 +90,6 @@ import {
     Legend,
 } from "chart.js";
 import { Bar } from "vue-chartjs";
-import { COLORS } from "~/utils/colors";
 
 ChartJS.register(
     CategoryScale,
@@ -101,28 +100,38 @@ ChartJS.register(
     Legend
 );
 
-interface StageChartEntry {
-    stage: string;
-    avg_hours: number;
-}
-
-interface CarrierCount {
-    carrier: string;
+interface LeakByStatus {
+    status: string;
     count: number;
+    revenue: number;
 }
 
-interface Bottlenecks {
-    created_to_processed_exceeds_24h_pct: number;
-    processed_to_fulfilled_exceeds_48h_pct: number;
+interface LeakByMonth {
+    month: string;
+    total_orders: number;
+    total_revenue: number;
+    failed: number;
+    cancelled: number;
+    refunded: number;
 }
 
-interface OrderFlowResponse {
+interface RevenueLeakResponse {
     order_count: number;
-    stage_durations: Record<string, any>;
-    bottlenecks: Bottlenecks;
-    fulfillment_rate: number;
-    top_carriers: CarrierCount[];
-    stage_chart_data: StageChartEntry[];
+    total_revenue: number;
+    failed_payment_count: number;
+    failed_payment_revenue: number;
+    failed_payment_pct: number;
+    cancelled_count: number;
+    cancelled_revenue: number;
+    cancelled_pct: number;
+    refunded_count: number;
+    refunded_revenue: number;
+    refunded_pct: number;
+    total_leak_count: number;
+    total_leak_revenue: number;
+    total_leak_pct: number;
+    leak_by_status: LeakByStatus[];
+    leak_by_month: LeakByMonth[];
 }
 
 const { isDark } = useTheme();
@@ -131,7 +140,7 @@ const props = defineProps<{
   dateRange?: { start: string; end: string }
 }>();
 
-const orderFlowData = ref<OrderFlowResponse | null>(null);
+const leakData = ref<RevenueLeakResponse | null>(null);
 const loading = ref(false);
 
 const loadData = async () => {
@@ -143,12 +152,12 @@ const loadData = async () => {
       params.set('end_date', props.dateRange.end);
     }
     const query = params.toString();
-    const url = query ? `/api/order_flow_analysis?${query}` : '/api/order_flow_analysis';
-    const result = await $fetch<OrderFlowResponse>(url);
-    orderFlowData.value = result;
+    const url = query ? `/api/revenue_leak_analysis?${query}` : '/api/revenue_leak_analysis';
+    const result = await $fetch<RevenueLeakResponse>(url);
+    leakData.value = result;
   } catch (error) {
-    console.error('Failed to load order flow data:', error);
-    orderFlowData.value = null;
+    console.error('Failed to load revenue leak data:', error);
+    leakData.value = null;
   } finally {
     loading.value = false;
   }
@@ -166,18 +175,20 @@ watch(
   { deep: true }
 );
 
-const orderCount = computed(() => orderFlowData.value?.order_count ?? 0);
-const fulfillmentRate = computed(() => orderFlowData.value?.fulfillment_rate ?? 0);
-const stageData = computed(() => orderFlowData.value?.stage_chart_data ?? []);
-const topCarriers = computed(() => orderFlowData.value?.top_carriers ?? []);
-const bottlenecks = computed(() => orderFlowData.value?.bottlenecks ?? {
-    created_to_processed_exceeds_24h_pct: 0,
-    processed_to_fulfilled_exceeds_48h_pct: 0
-});
+const orderCount = computed(() => leakData.value?.order_count ?? 0);
+const totalRevenue = computed(() => leakData.value?.total_revenue ?? 0);
+const totalLeakPct = computed(() => leakData.value?.total_leak_pct ?? 0);
+const leakByStatus = computed(() => leakData.value?.leak_by_status ?? []);
+const leakByMonth = computed(() => leakData.value?.leak_by_month ?? []);
 
-const topCarrier = computed(() => {
-    if (topCarriers.value.length === 0) return "N/A";
-    return topCarriers.value[0].carrier;
+const failedPaymentPct = computed(() => leakData.value?.failed_payment_pct ?? 0);
+const cancelledPct = computed(() => leakData.value?.cancelled_pct ?? 0);
+const refundedPct = computed(() => leakData.value?.refunded_pct ?? 0);
+
+const leakClass = computed(() => {
+    if (totalLeakPct.value > 20) return "text-rose-600 dark:text-rose-400";
+    if (totalLeakPct.value > 10) return "text-amber-600 dark:text-amber-400";
+    return "text-emerald-600 dark:text-emerald-400";
 });
 
 interface RedFlag {
@@ -190,24 +201,33 @@ interface RedFlag {
 
 const redFlags = computed<RedFlag[]>(() => {
     const flags: RedFlag[] = [];
-    const b = bottlenecks.value;
 
-    if (b.created_to_processed_exceeds_24h_pct > 10) {
+    if (failedPaymentPct.value > 5) {
         flags.push({
-            key: "slow-processing",
-            icon: "⚠️",
-            title: "Langsom behandling",
-            description: `${b.created_to_processed_exceeds_24h_pct.toFixed(1)}% af ordrer tager >24 timer at blive behandlet`,
+            key: "failed-payments",
+            icon: "💳",
+            title: "Høj betalingsfejl-rate",
+            description: `${failedPaymentPct.value.toFixed(1)}% af ordrer har fejlende betalinger`,
+            class: "bg-rose-100 dark:bg-rose-900/30 text-rose-800 dark:text-rose-200"
+        });
+    }
+
+    if (cancelledPct.value > 10) {
+        flags.push({
+            key: "high-cancellations",
+            icon: "❌",
+            title: "Høj annulleringsrate",
+            description: `${cancelledPct.value.toFixed(1)}% af ordrer bliver annulleret`,
             class: "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200"
         });
     }
 
-    if (b.processed_to_fulfilled_exceeds_48h_pct > 10) {
+    if (refundedPct.value > 15) {
         flags.push({
-            key: "slow-fulfillment",
-            icon: "⚠️",
-            title: "Langsom levering",
-            description: `${b.processed_to_fulfilled_exceeds_48h_pct.toFixed(1)}% af ordrer tager >48 timer at blive afsendt`,
+            key: "high-refunds",
+            icon: "↩️",
+            title: "Høj refunderingsrate",
+            description: `${refundedPct.value.toFixed(1)}% af ordrer bliver refunderet`,
             class: "bg-rose-100 dark:bg-rose-900/30 text-rose-800 dark:text-rose-200"
         });
     }
@@ -219,42 +239,54 @@ const formatNumber = (value: number): string => {
     return new Intl.NumberFormat("da-DK").format(value);
 };
 
+const formatCurrency = (value: number): string => {
+    return new Intl.NumberFormat("da-DK", {
+        style: "currency",
+        currency: "DKK",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(value);
+};
+
+const formatStatus = (status: string): string => {
+    const statusMap: Record<string, string> = {
+        "payment_failed": "Betaling fejlede",
+        "failed": "Fejlede",
+        "declined": "Afvist",
+        "cancelled": "Annulleret",
+        "canceled": "Annulleret",
+        "refunded": "Refunderet"
+    };
+    return statusMap[status.toLowerCase()] || status;
+};
+
 const chartData = computed(() => {
-    if (stageData.value.length === 0) {
+    if (leakByMonth.value.length === 0) {
         return { labels: [], datasets: [] };
     }
 
     return {
-        labels: stageData.value.map(d => d.stage),
+        labels: leakByMonth.value.map(d => d.month),
         datasets: [
             {
-                label: "Gennemsnitlig tid (timer)",
-                data: stageData.value.map(d => d.avg_hours),
-                backgroundColor: stageData.value.map((d, i) => {
-                    // Color red if duration exceeds threshold
-                    if (i === 0 && d.avg_hours > 24) {
-                        return "rgba(239, 68, 68, 0.7)"; // red
-                    }
-                    if (i === 1 && d.avg_hours > 48) {
-                        return "rgba(239, 68, 68, 0.7)"; // red
-                    }
-                    if (i === 2 && d.avg_hours > 168) { // >7 days
-                        return "rgba(239, 68, 68, 0.7)"; // red
-                    }
-                    return "rgba(99, 102, 241, 0.7)"; // indigo
-                }),
-                borderColor: stageData.value.map((d, i) => {
-                    if (i === 0 && d.avg_hours > 24) {
-                        return "rgba(239, 68, 68, 1)";
-                    }
-                    if (i === 1 && d.avg_hours > 48) {
-                        return "rgba(239, 68, 68, 1)";
-                    }
-                    if (i === 2 && d.avg_hours > 168) {
-                        return "rgba(239, 68, 68, 1)";
-                    }
-                    return "rgba(99, 102, 241, 1)";
-                }),
+                label: "Fejlende betaling",
+                data: leakByMonth.value.map(d => d.failed),
+                backgroundColor: "rgba(220, 38, 38, 0.8)",
+                borderColor: "rgba(220, 38, 38, 1)",
+                borderWidth: 1,
+            },
+            {
+                label: "Annulleret",
+                data: leakByMonth.value.map(d => d.cancelled),
+                backgroundColor: "rgba(217, 119, 6, 0.8)",
+                borderColor: "rgba(217, 119, 6, 1)",
+                borderWidth: 1,
+            },
+            {
+                label: "Refunderet",
+                data: leakByMonth.value.map(d => d.refunded),
+                backgroundColor: "rgba(37, 99, 235, 0.8)",
+                borderColor: "rgba(37, 99, 235, 1)",
                 borderWidth: 1,
             },
         ],
@@ -267,6 +299,7 @@ const chartOptions = computed(() => ({
     plugins: {
         legend: {
             display: true,
+            position: "top" as const,
             labels: {
                 color: isDark.value ? "#e2e8f0" : "#334155",
             },
@@ -277,43 +310,26 @@ const chartOptions = computed(() => ({
             bodyColor: isDark.value ? "#cbd5e1" : "#475569",
             borderColor: isDark.value ? "#475569" : "#e2e8f0",
             borderWidth: 1,
-            callbacks: {
-                label: function (context: any) {
-                    const value = context.raw;
-                    const label = context.label;
-                    if (!value) return null;
-                    // Convert to days if > 24 hours
-                    if (value >= 24) {
-                        const days = value / 24;
-                        return `${label}: ${days.toFixed(1)} dage`;
-                    }
-                    return `${label}: ${value.toFixed(1)} timer`;
-                },
-            },
         },
     },
     scales: {
         y: {
             beginAtZero: true,
+            stacked: true,
             grid: {
                 color: isDark.value ? "#334155" : "#e2e8f0",
             },
             ticks: {
                 color: isDark.value ? "#e2e8f0" : "#334155",
-                callback: function (value: any) {
-                    if (value >= 24) {
-                        return `${(value / 24).toFixed(0)}d`;
-                    }
-                    return `${value}t`;
-                },
             },
             title: {
                 display: true,
-                text: "Timer (t) / Dage (d)",
+                text: "Antal ordrer",
                 color: isDark.value ? "#e2e8f0" : "#334155",
             },
         },
         x: {
+            stacked: true,
             grid: {
                 color: isDark.value ? "#334155" : "#e2e8f0",
             },
@@ -326,7 +342,7 @@ const chartOptions = computed(() => ({
 </script>
 
 <style scoped>
-.order-flow-chart-container {
+.revenue-leak-chart-container {
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -353,18 +369,18 @@ const chartOptions = computed(() => ({
     border-left: 4px solid;
 }
 
-.carriers-section {
+.status-breakdown {
     margin-top: 24px;
 }
 
-.carrier-list {
+.status-list {
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
 }
 
-.carrier-item {
-    min-width: 120px;
+.status-item {
+    min-width: 150px;
 }
 
 .chart-wrapper {

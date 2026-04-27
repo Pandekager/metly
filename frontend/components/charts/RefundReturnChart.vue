@@ -137,7 +137,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch, onMounted } from "vue";
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -197,7 +197,44 @@ interface RefundReturnResponse {
 
 const { isDark } = useTheme();
 
-const { data: refundData } = await useFetch<RefundReturnResponse>("/api/refund_return_analysis");
+const props = defineProps<{
+  dateRange?: { start: string; end: string }
+}>();
+
+const refundData = ref<RefundReturnResponse | null>(null);
+const loading = ref(false);
+
+const loadData = async () => {
+  loading.value = true;
+  try {
+    const params = new URLSearchParams();
+    if (props.dateRange) {
+      params.set('start_date', props.dateRange.start);
+      params.set('end_date', props.dateRange.end);
+    }
+    const query = params.toString();
+    const url = query ? `/api/refund_return_analysis?${query}` : '/api/refund_return_analysis';
+    const result = await $fetch<RefundReturnResponse>(url);
+    refundData.value = result;
+  } catch (error) {
+    console.error('Failed to load refund/return data:', error);
+    refundData.value = null;
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(() => {
+  loadData();
+});
+
+watch(
+  () => props.dateRange,
+  () => {
+    loadData();
+  },
+  { deep: true }
+);
 
 const totalRefunds = computed(() => refundData.value?.total_refunds ?? 0);
 const totalRefundRevenue = computed(() => refundData.value?.total_refund_revenue ?? 0);
