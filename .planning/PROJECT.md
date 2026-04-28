@@ -1,10 +1,10 @@
 # Metly Project
 
-**Last Updated:** 2026-04-16 after v1.0 milestone
+**Last Updated:** 2026-04-28 after v1.2 milestone
 
 ## What This Is
 
-Metly is an e-commerce analytics dashboard that connects to webshop platforms (Shopify, Dandomain) and provides AI-powered business insights through sales forecasting, customer analytics, and product performance analysis.
+Metly is an e-commerce analytics dashboard that connects to webshop platforms (Shopify, Dandomain) and provides AI-powered business insights through sales forecasting, customer analytics, product performance analysis, and data-driven recommendations — with an intuitive dashboard featuring info tooltips and a unified timeline filter.
 
 ## Core Value
 
@@ -14,7 +14,9 @@ AI-driven business intelligence for small to medium e-commerce stores — turnin
 
 ### Validated
 
-(None yet — first milestone)
+- [x] v1.0: Product Analytics + Test Data (2026-04-16)
+- [x] v1.1: Shopify Process Insights (2026-04-26)
+- [x] v1.2: Data Fixes + UI Enhancements (2026-04-28)
 
 ### Active
 
@@ -37,10 +39,16 @@ AI-driven business intelligence for small to medium e-commerce stores — turnin
 - Database: MySQL (metlydk_main)
 - AI: Google Gemini for business recommendations
 
-**v1.0 Shipped:**
-- Product analytics tab with sales trends and top products
-- AI-powered product recommendations (pricing, bundling, inventory)
-- Shopify test data generator for development
+**v1.2 Shipped (2026-04-28):**
+- All 10 dashboard tabs loading data correctly for demo user
+- Info icons with contextual tooltips on each tab
+- Timeline date picker filtering all non-forecast tabs
+- Consistent API routing (/api prefix) across all endpoints
+- Blue/purple chart color palette with rounded bar corners
+- Optimized refund/return analysis (daily data, AVG, product filter)
+- Dynamic loading bar instead of spinner
+- Dark mode fixes across all chart components
+- Fixed inflated refund rate calculation (sums to 400% → max 33%)
 
 ## Key Decisions
 
@@ -49,7 +57,10 @@ AI-driven business intelligence for small to medium e-commerce stores — turnin
 | Reuse existing AIBusinessAdvice pattern for product AI | ✓ Implemented |
 | Shopify-first for product data focus | ✓ Implemented |
 | Tab-based dashboard layout | ✓ Shipped |
+| Centralize demo data in demo.py | ✓ Implemented in v1.1 |
+| Blue/purple chart palette for all visualizations | ✓ Implemented in v1.2 |
+| Dynamic loading bar over static spinner | ✓ Implemented in v1.2 |
 
 ---
 
-*Last updated: 2026-04-16 after v1.0 milestone*
+*Last updated: 2026-04-27 for v1.2 milestone*

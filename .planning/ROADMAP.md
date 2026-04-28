@@ -1,6 +1,6 @@
 # Metly Project Roadmap
 
-**Last Updated:** 2026-04-27
+**Last Updated:** 2026-04-28
 
 ---
 
@@ -8,56 +8,60 @@
 
 - ✅ **v1.0** — Product Analytics + Test Data (shipped 2026-04-16)
 - ✅ **v1.1** — Shopify Process Insights (shipped 2026-04-26)
-- 🚧 **v1.2** — Data Fixes + UI Enhancements (in progress)
+- ✅ **v1.2** — Data Fixes + UI Enhancements (shipped 2026-04-28)
+- 📋 **v1.3** — Next milestone (planned)
 
 ---
 
 ## Phases
 
-### v1.0 (Completed - shipped 2026-04-16)
+<details>
+<summary>✅ v1.0 (Phases 10, 99) — SHIPPED 2026-04-16</summary>
 
 - [x] Phase 99: Shopify Test Data Generator (2/2 plans) — completed
 - [x] Phase 10: Product Analysis Feature (2/2 plans) — completed
 
-### v1.1 (Completed - shipped 2026-04-26)
+</details>
 
-- [x] Phase 20: Order Flow Analysis (order lifecycle, delays, bottlenecks) — 2/2 plans
-- [x] Phase 21: Revenue Leak Detection (failed payments, uncompleted orders) — 2/2 plans
-- [x] Phase 22: Refund & Return Analysis (high-refund products, patterns) — 2/2 plans
-- [x] Phase 23: Checkout Drop-off Analysis (abandonment stages) — 2/2 plans
-- [x] Phase 24: Operational Bottlenecks (fulfillment inefficiencies) — 2/2 plans
-- [x] Phase 25: Customer Behavior Insights (retention impact) — 2/2 plans
-- [x] Phase 26: Insights Dashboard (actionable UI) — 1/1 plan
+<details>
+<summary>✅ v1.1 (Phases 20-26) — SHIPPED 2026-04-26</summary>
 
-### v1.2 (In Progress)
+- [x] Phase 20: Order Flow Analysis — 2/2 plans
+- [x] Phase 21: Revenue Leak Detection — 2/2 plans
+- [x] Phase 22: Refund & Return Analysis — 2/2 plans
+- [x] Phase 23: Checkout Drop-off Analysis — 2/2 plans
+- [x] Phase 24: Operational Bottlenecks — 2/2 plans
+- [x] Phase 25: Customer Behavior Insights — 2/2 plans
+- [x] Phase 26: Insights Dashboard — 1/1 plan
 
-- [ ] Phase 30: Data Loading Fixes (demo + Shopify) — 3/3 plans
-- [ ] Phase 31: UI Enhancements (info icons + timeline)
+</details>
 
----
+<details>
+<summary>✅ v1.2 (Phases 30-32) — SHIPPED 2026-04-28</summary>
 
-### Phase 30: Data Loading Fixes (demo + Shopify)
+- [x] Phase 30: Data Loading Fixes (3/3 plans) — completed
+- [x] Phase 31: UI Enhancements (2/2 plans) — completed
+- [x] Phase 32: Data Loading Verification (1/1 plan) — completed
 
-**Goal:** Fix data loading issues in both demo mode and Shopify API integration.
-
-**Requirement IDs:** D-01 through D-09 (from REQUIREMENTS.md)
-
-**Plans:** 3 plans
-- 30-01-PLAN.md — Customer & Order analytics queries
-- 30-02-PLAN.md — Revenue Leak, Refund & Checkout fixes
-- 30-03-PLAN.md — Insights & Product analytics
-
-### Phase 31: UI Enhancements (info icons + timeline)
-
-**Goal:** Add info icons explaining metrics and improve timeline visualization.
-
-**Requirement IDs:** UI-01, UI-02
-
-**Plans:** 2 plans
-- 31-01-PLAN.md — Info icons on each dashboard tab
-- 31-02-PLAN.md — Timeline date picker filtering
+</details>
 
 ---
 
-*Roadmap updated: 2026-04-27*
-*Milestone: v1.2 - Data Fixes + UI Enhancements*
+## Progress
+
+| Phase | Milestone | Plans Complete | Status | Completed |
+| ----- | --------- | -------------- | ------ | --------- |
+| 99. Shopify Test Data | v1.0 | 2/2 | Complete | 2026-04-16 |
+| 10. Product Analysis | v1.0 | 2/2 | Complete | 2026-04-16 |
+| 20. Order Flow | v1.1 | 2/2 | Complete | 2026-04-26 |
+| 21. Revenue Leak | v1.1 | 2/2 | Complete | 2026-04-26 |
+| 22. Refund & Return | v1.1 | 2/2 | Complete | 2026-04-26 |
+| 23. Checkout Drop-off | v1.1 | 2/2 | Complete | 2026-04-26 |
+| 24. Operational Bottlenecks | v1.1 | 2/2 | Complete | 2026-04-26 |
+| 25. Customer Behavior | v1.1 | 2/2 | Complete | 2026-04-26 |
+| 26. Insights Dashboard | v1.1 | 1/1 | Complete | 2026-04-26 |
+| 30. Data Loading Fixes | v1.2 | 3/3 | Complete | 2026-04-27 |
+| 31. UI Enhancements | v1.2 | 2/2 | Complete | 2026-04-27 |
+| 32. Data Loading Verification | v1.2 | 1/1 | Complete | 2026-04-28 |
+
+*Roadmap updated: 2026-04-28*
